@@ -6,7 +6,7 @@ from typing import Optional
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QHBoxLayout, QVBoxLayout,
     QSplitter, QListWidget, QLineEdit, QPushButton, QLabel, QListWidgetItem,
-    QMessageBox, QMenu, QDialog
+    QMessageBox, QMenu, QDialog, QTableView, QHeaderView
 )
 from PySide6.QtCore import Qt, QSize, Signal
 from PySide6.QtGui import QFont, QIcon
@@ -16,6 +16,9 @@ from core.models import Workspace
 
 # Import dialog windows
 from gui.dialogs import WorkspaceDialog
+
+# Import GUI models
+from gui.models import FileTableModel
 
 
 class WorkspaceListWidget(QListWidget):
@@ -111,6 +114,10 @@ class MainWindow(QMainWindow):
 
     def __init__(self):
         super().__init__()
+
+        # Initialize file table model
+        self.file_table_model = FileTableModel()
+
         self.init_ui()
         self.apply_dark_theme()
 
@@ -172,8 +179,13 @@ class MainWindow(QMainWindow):
 
     def _on_workspace_selected(self, workspace: Workspace):
         """Handle workspace selection change."""
-        print(f"Selected workspace: {workspace.name} (ID: {workspace.id})")
-        # TODO: Update file display in Phase 7
+        try:
+            print(f"Selected workspace: {workspace.name} (ID: {workspace.id})")
+            # Load files for the selected workspace into the table model
+            self.file_table_model.load_workspace_files(workspace.id)
+        except Exception as e:
+            QMessageBox.warning(self, "Error Loading Files",
+                              f"Failed to load files for workspace '{workspace.name}': {str(e)}")
 
     def _on_new_workspace(self):
         """Handle new workspace button click."""
@@ -230,11 +242,8 @@ class MainWindow(QMainWindow):
         right_layout.addWidget(search_widget)
 
         # File display area (bottom of right panel)
-        file_display_label = QLabel("File display area (coming in Phase 7)")
-        file_display_label.setObjectName("placeholderText")
-        file_display_label.setAlignment(Qt.AlignCenter)
-        file_display_label.setMinimumHeight(200)
-        right_layout.addWidget(file_display_label)
+        self.file_table = self.create_file_table()
+        right_layout.addWidget(self.file_table)
 
         return right_widget
 
@@ -257,6 +266,34 @@ class MainWindow(QMainWindow):
         search_layout.addWidget(clear_btn)
 
         return search_widget
+
+    def create_file_table(self):
+        """Create the file table view with model."""
+        table = QTableView()
+        table.setObjectName("fileTable")
+        table.setModel(self.file_table_model)
+
+        # Configure table appearance and behavior
+        table.setAlternatingRowColors(True)
+        table.setSelectionBehavior(QTableView.SelectRows)
+        table.setSortingEnabled(True)
+        table.setShowGrid(False)
+
+        # Configure column widths
+        header = table.horizontalHeader()
+        header.setSectionResizeMode(FileTableModel.COL_RELATIVE_PATH, QHeaderView.ResizeToContents)
+        header.setSectionResizeMode(FileTableModel.COL_FILE_TYPE, QHeaderView.ResizeToContents)
+        header.setSectionResizeMode(FileTableModel.COL_ABSOLUTE_PATH, QHeaderView.Stretch)
+        header.setSectionResizeMode(FileTableModel.COL_TAGS, QHeaderView.ResizeToContents)
+
+        # Configure vertical header
+        table.verticalHeader().setVisible(False)
+        table.verticalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
+
+        # Set minimum height
+        table.setMinimumHeight(200)
+
+        return table
 
     def apply_dark_theme(self):
         """Apply modern dark theme styling similar to VSCode/Cursor."""
@@ -386,13 +423,48 @@ class MainWindow(QMainWindow):
                 background-color: {bg_secondary};
             }}
 
-            /* Placeholder text */
-            QLabel#placeholderText {{
-                color: {text_secondary};
-                font-size: 14px;
+            /* File Table */
+            QTableView#fileTable {{
                 background-color: {bg_secondary};
-                border: 1px dashed {border_color};
+                border: 1px solid {border_color};
                 border-radius: 6px;
+                gridline-color: {border_color};
+                selection-background-color: {accent_blue};
+                alternate-background-color: {bg_tertiary};
+                outline: none;
+            }}
+
+            QTableView#fileTable::item {{
+                padding: 6px 8px;
+                border: none;
+            }}
+
+            QTableView#fileTable::item:hover {{
+                background-color: {hover_color};
+            }}
+
+            QTableView#fileTable::item:selected {{
+                background-color: {accent_blue};
+                color: white;
+            }}
+
+            /* Table Headers */
+            QHeaderView::section {{
+                background-color: {bg_tertiary};
+                color: {text_primary};
+                border: 1px solid {border_color};
+                border-left: none;
+                border-top: none;
+                padding: 8px 12px;
+                font-weight: bold;
+            }}
+
+            QHeaderView::section:first {{
+                border-left: 1px solid {border_color};
+            }}
+
+            QHeaderView::section:hover {{
+                background-color: {hover_color};
             }}
         """)
 
