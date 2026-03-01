@@ -261,7 +261,7 @@
 - [x] Implement the "Tag Dialog" UI to assign/edit/remove tags for selected files.
 - [x] Connect the "Tag Dialog" to the database to persist tag changes and refresh the view.
 - [x] Implement auto-completion in the Tag Dialog based on existing tags in the database.
-- [ ] Commit Git.
+- [x] Commit Git.
 
 ### Phase 8 Task 1 Learnings (Custom Tag Delegate):
 - **Implemented comprehensive TagPillDelegate class (`gui/delegates.py`)**:
