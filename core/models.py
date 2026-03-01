@@ -503,3 +503,266 @@ class WorkspacePath:
 
     def __repr__(self) -> str:
         return self.__str__()
+
+
+class Tag:
+    """Model for tag data and operations."""
+
+    def __init__(self, id: Optional[int] = None, file_id: int = 0, tag_name: str = ""):
+        self.id = id
+        self.file_id = file_id
+        self.tag_name = tag_name
+
+    @classmethod
+    def add_tag_to_file(cls, file_id: int, tag_name: str) -> 'Tag':
+        """
+        Add a tag to a file.
+
+        Args:
+            file_id: The file entry ID
+            tag_name: The tag name to add
+
+        Returns:
+            Tag: The created tag
+
+        Raises:
+            ValueError: If file_id doesn't exist or tag_name is empty
+            sqlite3.IntegrityError: If tag already exists for this file
+        """
+        # Validate tag_name is not empty
+        if not tag_name or not tag_name.strip():
+            raise ValueError("tag_name cannot be empty")
+
+        tag_name = tag_name.strip()
+
+        conn = get_connection()
+        try:
+            cursor = conn.cursor()
+
+            # Verify file exists
+            cursor.execute('SELECT id FROM file_entry WHERE id = ?', (file_id,))
+            if not cursor.fetchone():
+                raise ValueError(f"File with ID {file_id} does not exist")
+
+            # Insert the tag
+            cursor.execute('''
+                INSERT INTO tags (file_id, tag_name)
+                VALUES (?, ?)
+            ''', (file_id, tag_name))
+
+            tag_id = cursor.lastrowid
+            conn.commit()
+
+            return cls(id=tag_id, file_id=file_id, tag_name=tag_name)
+
+        except sqlite3.Error as e:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
+
+    @classmethod
+    def remove_tag_from_file(cls, file_id: int, tag_name: str) -> bool:
+        """
+        Remove a tag from a file.
+
+        Args:
+            file_id: The file entry ID
+            tag_name: The tag name to remove
+
+        Returns:
+            bool: True if tag was removed, False if not found
+        """
+        conn = get_connection()
+        try:
+            cursor = conn.cursor()
+
+            cursor.execute('''
+                DELETE FROM tags
+                WHERE file_id = ? AND tag_name = ?
+            ''', (file_id, tag_name.strip()))
+
+            success = cursor.rowcount > 0
+            conn.commit()
+
+            return success
+
+        except sqlite3.Error as e:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
+
+    @classmethod
+    def remove_tag_by_id(cls, tag_id: int) -> bool:
+        """
+        Remove a tag by its ID.
+
+        Args:
+            tag_id: The tag ID
+
+        Returns:
+            bool: True if tag was removed, False if not found
+        """
+        conn = get_connection()
+        try:
+            cursor = conn.cursor()
+
+            cursor.execute('DELETE FROM tags WHERE id = ?', (tag_id,))
+
+            success = cursor.rowcount > 0
+            conn.commit()
+
+            return success
+
+        except sqlite3.Error as e:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
+
+    @classmethod
+    def get_tags_for_file(cls, file_id: int) -> List['Tag']:
+        """
+        Get all tags for a specific file.
+
+        Args:
+            file_id: The file entry ID
+
+        Returns:
+            List[Tag]: List of tags for the file, ordered by tag_name
+        """
+        conn = get_connection()
+        try:
+            cursor = conn.cursor()
+
+            cursor.execute('''
+                SELECT id, file_id, tag_name
+                FROM tags
+                WHERE file_id = ?
+                ORDER BY tag_name ASC
+            ''', (file_id,))
+
+            tags = []
+            for row in cursor.fetchall():
+                tag = cls(
+                    id=row['id'],
+                    file_id=row['file_id'],
+                    tag_name=row['tag_name']
+                )
+                tags.append(tag)
+
+            return tags
+
+        except sqlite3.Error as e:
+            raise
+        finally:
+            conn.close()
+
+    @classmethod
+    def get_all_unique_tags(cls) -> List[str]:
+        """
+        Get all unique tag names in the database.
+
+        Returns:
+            List[str]: List of unique tag names, ordered alphabetically
+        """
+        conn = get_connection()
+        try:
+            cursor = conn.cursor()
+
+            cursor.execute('''
+                SELECT DISTINCT tag_name
+                FROM tags
+                ORDER BY tag_name ASC
+            ''')
+
+            tags = [row['tag_name'] for row in cursor.fetchall()]
+            return tags
+
+        except sqlite3.Error as e:
+            raise
+        finally:
+            conn.close()
+
+    @classmethod
+    def get_by_id(cls, tag_id: int) -> Optional['Tag']:
+        """
+        Get a tag by its ID.
+
+        Args:
+            tag_id: The tag ID
+
+        Returns:
+            Tag: The tag if found, None otherwise
+        """
+        conn = get_connection()
+        try:
+            cursor = conn.cursor()
+
+            cursor.execute('''
+                SELECT id, file_id, tag_name
+                FROM tags
+                WHERE id = ?
+            ''', (tag_id,))
+
+            row = cursor.fetchone()
+            if row:
+                return cls(
+                    id=row['id'],
+                    file_id=row['file_id'],
+                    tag_name=row['tag_name']
+                )
+            return None
+
+        except sqlite3.Error as e:
+            raise
+        finally:
+            conn.close()
+
+    @classmethod
+    def tag_exists_for_file(cls, file_id: int, tag_name: str) -> bool:
+        """
+        Check if a tag already exists for a file.
+
+        Args:
+            file_id: The file entry ID
+            tag_name: The tag name to check
+
+        Returns:
+            bool: True if tag exists for the file, False otherwise
+        """
+        conn = get_connection()
+        try:
+            cursor = conn.cursor()
+
+            cursor.execute('''
+                SELECT id FROM tags
+                WHERE file_id = ? AND tag_name = ?
+            ''', (file_id, tag_name.strip()))
+
+            return cursor.fetchone() is not None
+
+        except sqlite3.Error as e:
+            raise
+        finally:
+            conn.close()
+
+    def to_dict(self) -> Dict[str, Any]:
+        """
+        Convert tag to dictionary representation.
+
+        Returns:
+            dict: Dictionary with tag data
+        """
+        return {
+            'id': self.id,
+            'file_id': self.file_id,
+            'tag_name': self.tag_name
+        }
+
+    def __str__(self) -> str:
+        return f"Tag(id={self.id}, file_id={self.file_id}, tag_name='{self.tag_name}')"
+
+    def __repr__(self) -> str:
+        return self.__str__()

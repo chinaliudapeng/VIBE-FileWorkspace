@@ -13,13 +13,13 @@
 - Added performance indexes on commonly queried columns
 - 9/9 unit tests passing, schema matches specification exactly
 
-## Phase 2: Core Data Layer (CRUD)
+## Phase 2: Core Data Layer (CRUD) ✅ COMPLETED
 - [x] Implement CRUD operations for Workspaces in `core/models.py` (Create Workspace, List Workspaces, Delete Workspace).
 - [x] Write unit tests for Workspace CRUD operations.
 - [x] Implement CRUD operations for Workspace Paths (Add Path to Workspace, Remove Path).
 - [x] Write unit tests for Workspace Paths CRUD operations.
-- [ ] Implement CRUD operations for Tags (Add Tag to File, Remove Tag from File, Get all Tags for File, Get all unique Tags in DB).
-- [ ] Write unit tests for Tag CRUD operations.
+- [x] Implement CRUD operations for Tags (Add Tag to File, Remove Tag from File, Get all Tags for File, Get all unique Tags in DB).
+- [x] Write unit tests for Tag CRUD operations.
 
 ### Phase 2 Learnings:
 - Workspace model implemented with comprehensive CRUD operations
@@ -28,8 +28,13 @@
 - Fixed critical issue: SQLite foreign key constraints were not enabled by default - added `PRAGMA foreign_keys = ON` to enable CASCADE DELETE functionality
 - All foreign key CASCADE DELETE constraints work properly for workspace deletion (automatically removes workspace paths, file entries, and tags)
 - WorkspacePath operations include validation for path types, workspace existence, and duplicate prevention
-- Created 18 unit tests for workspace operations and 24 unit tests for workspace path operations
-- Total test count: 51 tests (9 database + 18 workspace + 24 workspace path) - all passing
+- Tag model implemented with comprehensive CRUD operations following established patterns
+- Tag operations include validation for empty tag names, file existence, and duplicate prevention
+- Tag foreign key constraints to file_entry work properly with CASCADE DELETE (tags auto-deleted when files are deleted)
+- Unique constraint on (file_id, tag_name) prevents duplicate tags on same file
+- Tag operations properly handle whitespace trimming and input validation
+- Created 18 unit tests for workspace operations, 24 unit tests for workspace path operations, and 22 unit tests for tag operations
+- Total test count: 73 tests (9 database + 18 workspace + 24 workspace path + 22 tag) - all passing
 
 ## Phase 3: Core Scanner & Monitoring
 - [ ] Implement initial filesystem scanner (`core/scanner.py`) to populate the `file_entry` table for a given Workspace root path.
