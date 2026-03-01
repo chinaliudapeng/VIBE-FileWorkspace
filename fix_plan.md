@@ -66,14 +66,46 @@
 - File entries include relative_path (from workspace root), absolute_path (unique), and detected file_type
 - Total test count: 113 tests (9 database + 18 workspace + 24 workspace path + 22 tag + 18 scanner + 22 watcher) - all passing
 
-## Phase 4: CLI Implementation
-- [ ] Create basic CLI structure using `click` or `argparse` in `cli/main.py`.
-- [ ] Implement CLI command: `list-files --workspace <name>` and format output as JSON.
-- [ ] Implement CLI command: `get-tags --path <absolute_path>` and format output as JSON.
-- [ ] Implement CLI command: `add-tag --path <absolute_path> --tag <name>`.
-- [ ] Implement CLI command: `search --keyword` and `search --tags`, outputting JSON.
-- [ ] Write integration tests for the CLI to ensure it interacts correctly with the Core Data Layer.
-- [ ] Commit Git.
+## Phase 4: CLI Implementation ✅ COMPLETED
+- [x] Create basic CLI structure using `click` or `argparse` in `cli/main.py`.
+- [x] Implement CLI command: `list-files --workspace <name>` and format output as JSON.
+- [x] Implement CLI command: `get-tags --path <absolute_path>` and format output as JSON.
+- [x] Implement CLI command: `add-tag --path <absolute_path> --tag <name>`.
+- [x] Implement CLI command: `search --keyword` and `search --tags`, outputting JSON.
+- [x] Write integration tests for the CLI to ensure it interacts correctly with the Core Data Layer.
+- [x] Commit Git.
+
+### Phase 4 Learnings:
+- **Implemented complete CLI interface using Click framework (`cli/main.py`)**:
+  - Created professional command-line interface with help documentation and version info
+  - All commands output machine-readable JSON format as required for AI agent integration
+  - Consistent error handling with JSON error responses and appropriate exit codes
+  - Added proper imports and path management to access core modules
+- **All required CLI commands fully implemented**:
+  - `list-files --workspace <name>`: Lists files in a workspace with metadata (relative path, absolute path, file type)
+  - `get-tags --path <absolute_path>`: Returns all tags for a specific file
+  - `add-tag --path <absolute_path> --tag <name>`: Adds tags to files with validation
+  - `search --keyword <keyword>`: Searches file paths by keyword
+  - `search --tags <tag1,tag2>`: Searches files by tag names (comma-separated)
+  - `search --keyword <keyword> --tags <tags>`: Combined keyword and tag search
+  - `search --workspace <name>`: Limits searches to specific workspace
+- **Enhanced FileEntry model with comprehensive search functionality (`core/scanner.py`)**:
+  - Added `search_by_keyword()` method for file path searches with optional workspace filtering
+  - Added `search_by_tags()` method for tag-based searches with SQL JOIN operations
+  - Added `search_by_keyword_and_tags()` method for combined searches
+  - All search methods use efficient SQL queries with proper indexing and parameterization
+- **Created comprehensive CLI test suite (`tests/test_cli.py`)**:
+  - 8 integration tests covering all CLI commands and error scenarios
+  - Tests use temporary database files for isolation and reliability
+  - Tests verify JSON output format, error handling, and data integrity
+  - Includes positive and negative test cases for robust validation
+- **CLI properly integrates with existing core data layer**:
+  - Uses same SQLite database as GUI application (single source of truth)
+  - Leverages existing Workspace, WorkspacePath, FileEntry, and Tag models
+  - Maintains data consistency and foreign key relationships
+  - No direct SQL in CLI - all operations go through core models as required
+- **Total test count: 121 tests (113 existing + 8 CLI) - all passing**
+- **CLI ready for AI agent integration and packaging phase**
 
 ## Phase 5: GUI Foundation
 - [ ] Create the basic PySide6 `MainWindow` application shell (`gui/main_window.py`).

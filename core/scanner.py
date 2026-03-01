@@ -193,6 +193,181 @@ class FileEntry:
     def __repr__(self) -> str:
         return self.__str__()
 
+    @classmethod
+    def search_by_keyword(cls, keyword: str, workspace_id: Optional[int] = None) -> List['FileEntry']:
+        """
+        Search for files by keyword in file path.
+
+        Args:
+            keyword: The keyword to search for in file paths
+            workspace_id: Optional workspace ID to limit search to
+
+        Returns:
+            List[FileEntry]: List of matching file entries
+        """
+        conn = get_connection()
+        try:
+            cursor = conn.cursor()
+
+            if workspace_id:
+                cursor.execute('''
+                    SELECT id, workspace_id, relative_path, absolute_path, file_type
+                    FROM file_entry
+                    WHERE workspace_id = ? AND (relative_path LIKE ? OR absolute_path LIKE ?)
+                    ORDER BY relative_path ASC
+                ''', (workspace_id, f'%{keyword}%', f'%{keyword}%'))
+            else:
+                cursor.execute('''
+                    SELECT id, workspace_id, relative_path, absolute_path, file_type
+                    FROM file_entry
+                    WHERE relative_path LIKE ? OR absolute_path LIKE ?
+                    ORDER BY relative_path ASC
+                ''', (f'%{keyword}%', f'%{keyword}%'))
+
+            files = []
+            for row in cursor.fetchall():
+                file_entry = cls(
+                    id=row['id'],
+                    workspace_id=row['workspace_id'],
+                    relative_path=row['relative_path'],
+                    absolute_path=row['absolute_path'],
+                    file_type=row['file_type']
+                )
+                files.append(file_entry)
+
+            return files
+
+        except sqlite3.Error as e:
+            raise
+        finally:
+            conn.close()
+
+    @classmethod
+    def search_by_tags(cls, tag_names: List[str], workspace_id: Optional[int] = None) -> List['FileEntry']:
+        """
+        Search for files by tag names.
+
+        Args:
+            tag_names: List of tag names to search for
+            workspace_id: Optional workspace ID to limit search to
+
+        Returns:
+            List[FileEntry]: List of matching file entries
+        """
+        if not tag_names:
+            return []
+
+        conn = get_connection()
+        try:
+            cursor = conn.cursor()
+
+            # Create placeholders for the IN clause
+            placeholders = ','.join(['?' for _ in tag_names])
+
+            if workspace_id:
+                query = f'''
+                    SELECT DISTINCT fe.id, fe.workspace_id, fe.relative_path, fe.absolute_path, fe.file_type
+                    FROM file_entry fe
+                    INNER JOIN tags t ON fe.id = t.file_id
+                    WHERE fe.workspace_id = ? AND t.tag_name IN ({placeholders})
+                    ORDER BY fe.relative_path ASC
+                '''
+                params = [workspace_id] + tag_names
+            else:
+                query = f'''
+                    SELECT DISTINCT fe.id, fe.workspace_id, fe.relative_path, fe.absolute_path, fe.file_type
+                    FROM file_entry fe
+                    INNER JOIN tags t ON fe.id = t.file_id
+                    WHERE t.tag_name IN ({placeholders})
+                    ORDER BY fe.relative_path ASC
+                '''
+                params = tag_names
+
+            cursor.execute(query, params)
+
+            files = []
+            for row in cursor.fetchall():
+                file_entry = cls(
+                    id=row['id'],
+                    workspace_id=row['workspace_id'],
+                    relative_path=row['relative_path'],
+                    absolute_path=row['absolute_path'],
+                    file_type=row['file_type']
+                )
+                files.append(file_entry)
+
+            return files
+
+        except sqlite3.Error as e:
+            raise
+        finally:
+            conn.close()
+
+    @classmethod
+    def search_by_keyword_and_tags(cls, keyword: str, tag_names: List[str], workspace_id: Optional[int] = None) -> List['FileEntry']:
+        """
+        Search for files by both keyword and tags.
+
+        Args:
+            keyword: The keyword to search for in file paths
+            tag_names: List of tag names to search for
+            workspace_id: Optional workspace ID to limit search to
+
+        Returns:
+            List[FileEntry]: List of matching file entries (files that match both criteria)
+        """
+        if not tag_names:
+            return cls.search_by_keyword(keyword, workspace_id)
+
+        conn = get_connection()
+        try:
+            cursor = conn.cursor()
+
+            # Create placeholders for the IN clause
+            placeholders = ','.join(['?' for _ in tag_names])
+
+            if workspace_id:
+                query = f'''
+                    SELECT DISTINCT fe.id, fe.workspace_id, fe.relative_path, fe.absolute_path, fe.file_type
+                    FROM file_entry fe
+                    INNER JOIN tags t ON fe.id = t.file_id
+                    WHERE fe.workspace_id = ?
+                    AND (fe.relative_path LIKE ? OR fe.absolute_path LIKE ?)
+                    AND t.tag_name IN ({placeholders})
+                    ORDER BY fe.relative_path ASC
+                '''
+                params = [workspace_id, f'%{keyword}%', f'%{keyword}%'] + tag_names
+            else:
+                query = f'''
+                    SELECT DISTINCT fe.id, fe.workspace_id, fe.relative_path, fe.absolute_path, fe.file_type
+                    FROM file_entry fe
+                    INNER JOIN tags t ON fe.id = t.file_id
+                    WHERE (fe.relative_path LIKE ? OR fe.absolute_path LIKE ?)
+                    AND t.tag_name IN ({placeholders})
+                    ORDER BY fe.relative_path ASC
+                '''
+                params = [f'%{keyword}%', f'%{keyword}%'] + tag_names
+
+            cursor.execute(query, params)
+
+            files = []
+            for row in cursor.fetchall():
+                file_entry = cls(
+                    id=row['id'],
+                    workspace_id=row['workspace_id'],
+                    relative_path=row['relative_path'],
+                    absolute_path=row['absolute_path'],
+                    file_type=row['file_type']
+                )
+                files.append(file_entry)
+
+            return files
+
+        except sqlite3.Error as e:
+            raise
+        finally:
+            conn.close()
+
 
 class FilesystemScanner:
     """Scanner for discovering files in workspace paths."""
