@@ -6,7 +6,7 @@ from typing import Optional
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QHBoxLayout, QVBoxLayout,
     QSplitter, QListWidget, QLineEdit, QPushButton, QLabel, QListWidgetItem,
-    QMessageBox
+    QMessageBox, QMenu, QDialog
 )
 from PySide6.QtCore import Qt, QSize, Signal
 from PySide6.QtGui import QFont, QIcon
@@ -14,16 +14,25 @@ from PySide6.QtGui import QFont, QIcon
 # Import core data models
 from core.models import Workspace
 
+# Import dialog windows
+from gui.dialogs import WorkspaceDialog
+
 
 class WorkspaceListWidget(QListWidget):
     """Custom list widget for displaying workspaces with database integration."""
 
     workspace_selected = Signal(object)  # Emits selected Workspace object
+    edit_requested = Signal(object)     # Emits workspace to edit
+    delete_requested = Signal(object)   # Emits workspace to delete
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self.workspaces = []  # Store workspace objects
         self.setObjectName("workspaceList")
+
+        # Enable context menu
+        self.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.customContextMenuRequested.connect(self._show_context_menu)
 
         # Connect selection change signal
         self.currentItemChanged.connect(self._on_selection_changed)
@@ -77,6 +86,25 @@ class WorkspaceListWidget(QListWidget):
             if workspace:
                 self.workspace_selected.emit(workspace)
 
+    def _show_context_menu(self, position):
+        """Show context menu for workspace items."""
+        item = self.itemAt(position)
+        if item:
+            workspace = item.data(Qt.UserRole)
+            if workspace:
+                menu = QMenu(self)
+
+                # Edit workspace action
+                edit_action = menu.addAction("Edit Workspace")
+                edit_action.triggered.connect(lambda: self.edit_requested.emit(workspace))
+
+                # Delete workspace action
+                delete_action = menu.addAction("Delete Workspace")
+                delete_action.triggered.connect(lambda: self.delete_requested.emit(workspace))
+
+                # Show menu at cursor position
+                menu.exec(self.mapToGlobal(position))
+
 
 class MainWindow(QMainWindow):
     """Main window for the Workspace File Indexer application."""
@@ -127,15 +155,17 @@ class MainWindow(QMainWindow):
         # Workspace list with database integration
         self.workspace_list = WorkspaceListWidget()
         self.workspace_list.workspace_selected.connect(self._on_workspace_selected)
+        self.workspace_list.edit_requested.connect(self._on_edit_workspace)
+        self.workspace_list.delete_requested.connect(self._on_delete_workspace)
         left_layout.addWidget(self.workspace_list)
 
         # Load workspaces from database
         self.workspace_list.load_workspaces()
 
-        # New workspace button (placeholder for Phase 6)
+        # New workspace button
         new_workspace_btn = QPushButton("New Workspace")
         new_workspace_btn.setObjectName("primaryButton")
-        # TODO: Connect to workspace dialog in Phase 6
+        new_workspace_btn.clicked.connect(self._on_new_workspace)
         left_layout.addWidget(new_workspace_btn)
 
         return left_widget
@@ -144,6 +174,49 @@ class MainWindow(QMainWindow):
         """Handle workspace selection change."""
         print(f"Selected workspace: {workspace.name} (ID: {workspace.id})")
         # TODO: Update file display in Phase 7
+
+    def _on_new_workspace(self):
+        """Handle new workspace button click."""
+        dialog = WorkspaceDialog(self)
+        if dialog.exec() == QDialog.Accepted:
+            # Refresh workspace list to show the new workspace
+            self.workspace_list.refresh()
+
+    def _on_edit_workspace(self, workspace: Workspace):
+        """Handle edit workspace request from context menu."""
+        dialog = WorkspaceDialog(self, workspace)
+        if dialog.exec() == QDialog.Accepted:
+            # Refresh workspace list to show updated workspace
+            self.workspace_list.refresh()
+
+    def _on_delete_workspace(self, workspace: Workspace):
+        """Handle delete workspace request from context menu."""
+        # Ask for confirmation
+        reply = QMessageBox.question(
+            self, "Delete Workspace",
+            f"Are you sure you want to delete workspace '{workspace.name}'?\n\n"
+            f"This will remove all indexed files and tags for this workspace.",
+            QMessageBox.Yes | QMessageBox.No
+        )
+
+        if reply == QMessageBox.Yes:
+            try:
+                # Delete workspace (will cascade to paths, files, and tags)
+                Workspace.delete(workspace.id)
+
+                # Refresh workspace list
+                self.workspace_list.refresh()
+
+                # Show success message
+                QMessageBox.information(
+                    self, "Workspace Deleted",
+                    f"Workspace '{workspace.name}' has been deleted successfully."
+                )
+            except Exception as e:
+                QMessageBox.critical(
+                    self, "Error",
+                    f"Failed to delete workspace: {str(e)}"
+                )
 
     def create_right_area(self):
         """Create the right area containing search and file display."""

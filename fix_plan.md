@@ -140,13 +140,13 @@
 - **All 121 unit tests continue to pass** - no regressions introduced
 - **GUI foundation ready for Phase 6 (Workspace Dialogs) implementation**
 
-## Phase 6: GUI Workspace Dialogs
+## Phase 6: GUI Workspace Dialogs ✅ COMPLETED
 - [x] Implement the "New/Edit Workspace" Dialog UI (`gui/dialogs.py`).
 - [x] Implement functionality in the Workspace Dialog to add/remove folder and file paths.
-- [ ] Connect the Workspace Dialog to the database layer to save changes and refresh the `WorkspaceListWidget`.
-- [ ] Commit Git.
+- [x] Connect the Workspace Dialog to the database layer to save changes and refresh the `WorkspaceListWidget`.
+- [x] Commit Git.
 
-### Phase 6 Learnings (In Progress):
+### Phase 6 Learnings:
 - **Implemented comprehensive WorkspaceDialog class (`gui/dialogs.py`)**:
   - Single dialog handles both new workspace creation and editing existing workspaces
   - Modern dark theme UI consistent with main window styling
@@ -171,7 +171,22 @@
   - Maintains single source of truth principle (no direct SQL in GUI)
   - Proper foreign key relationship handling
   - Transaction safety with error rollback
-- **Still needed**: Connect dialog to main window's "New Workspace" button and implement workspace refresh after changes
+- **Connected WorkspaceDialog to MainWindow (`gui/main_window.py`)**:
+  - Connected "New Workspace" button to open WorkspaceDialog for creating new workspaces
+  - Added context menu to WorkspaceListWidget with "Edit Workspace" and "Delete Workspace" options
+  - Implemented `_on_new_workspace()` method to handle new workspace creation with automatic list refresh
+  - Implemented `_on_edit_workspace()` method to handle workspace editing with automatic list refresh
+  - Implemented `_on_delete_workspace()` method with confirmation dialog and cascade delete functionality
+  - Enhanced WorkspaceListWidget with custom context menu signals (edit_requested, delete_requested)
+  - All operations properly refresh the workspace list to reflect database changes
+- **Created comprehensive GUI integration test suite (`tests/test_gui_integration.py`)**:
+  - 3 integration tests covering dialog-to-database connectivity and main window functionality
+  - Tests verify that WorkspaceDialog successfully creates/saves workspaces and paths to database
+  - Tests verify that MainWindow properly integrates with WorkspaceDialog through signal connections
+  - Tests verify that WorkspaceListWidget properly emits signals and loads data from database
+  - All tests use temporary database files for isolation and reliable testing
+- **Total test count: 124 tests (121 existing + 3 new GUI integration) - all passing except 1 skipped**
+- **Phase 6 fully completed with full GUI-to-database integration and comprehensive testing**
 
 ## Phase 7: GUI File View & Models
 - [ ] Implement `QAbstractTableModel` for the bottom right area to display `file_entry` data efficiently.
