@@ -140,3 +140,14 @@ class FileTableModel(QAbstractTableModel):
     def get_file_count(self) -> int:
         """Get the number of files in the current model."""
         return len(self._files)
+
+    def _set_files(self, files: List[FileEntry]) -> None:
+        """
+        Set files directly (used for filtered search results).
+
+        Args:
+            files: List of FileEntry objects to display
+        """
+        self.beginResetModel()
+        self._files = files
+        self.endResetModel()

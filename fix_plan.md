@@ -189,11 +189,71 @@
 - **Phase 6 fully completed with full GUI-to-database integration and comprehensive testing**
 
 ## Phase 7: GUI File View & Models
-- [ ] Implement `QAbstractTableModel` for the bottom right area to display `file_entry` data efficiently.
-- [ ] Implement the Table/Tree View in the bottom right area and connect it to the custom Model.
-- [ ] Implement the Top Right Area with a Search Input box and Clear button.
-- [ ] Connect the Search Input to the Model/Database to filter the displayed files dynamically.
+- [x] Implement `QAbstractTableModel` for the bottom right area to display `file_entry` data efficiently.
+- [x] Implement the Table/Tree View in the bottom right area and connect it to the custom Model.
+- [x] Implement the Top Right Area with a Search Input box and Clear button.
+- [x] Connect the Search Input to the Model/Database to filter the displayed files dynamically.
 - [ ] Commit Git.
+
+### Phase 7 Task 1 Learnings:
+- **Implemented comprehensive FileTableModel (`gui/models.py`)**:
+  - Created QAbstractTableModel subclass with 4 columns: Relative Path, File Type, Absolute Path, Tags
+  - Efficient data loading using FileEntry.get_files_for_workspace() method
+  - Proper model state management with beginResetModel/endResetModel for data changes
+  - Multiple data roles: DisplayRole for text, ToolTipRole for full paths, UserRole for FileEntry objects, FontRole for monospace paths
+  - Comprehensive methods: load_workspace_files(), clear_files(), refresh(), get_file_at_row()
+  - Error handling with graceful model reset on database errors
+- **Enhanced MainWindow integration (`gui/main_window.py`)**:
+  - Replaced placeholder file display with functional QTableView using FileTableModel
+  - Added create_file_table() method with modern table configuration
+  - Proper column sizing: ResizeToContents for relative path and file type, Stretch for absolute path
+  - Enabled alternating row colors, row selection, sorting, and disabled grid lines
+  - Connected workspace selection to automatically load files (_on_workspace_selected method)
+  - Added comprehensive dark theme styling for QTableView and QHeaderView
+- **Database integration follows single source of truth principle**:
+  - All file operations route through core.scanner.FileEntry methods
+  - No direct SQL in GUI components as required
+  - Maintains data consistency and foreign key relationships
+- **Created comprehensive test suite (`tests/test_gui_models.py`)**:
+  - 14 unit tests covering all FileTableModel functionality
+  - Tests use proper database mocking with temporary databases for isolation
+  - Comprehensive coverage: initial state, data loading, error handling, refresh, data access
+  - All tests pass, maintaining total test count of 137 passed, 1 skipped
+- **Modern UI implementation**:
+  - Dark theme styling consistent with VSCode/Cursor aesthetic
+  - Hover effects, accent colors, proper spacing and typography
+  - Monospace fonts for file paths for better readability
+  - Tooltips showing full absolute paths for all columns
+### Phase 7 Task 2-4 Learnings (Search Functionality):
+- **Implemented dynamic file search functionality (`gui/main_window.py`)**:
+  - Connected search input textChanged signal to `_on_search_text_changed()` method for real-time filtering
+  - Connected clear button to `_on_search_clear()` method for resetting search
+  - Supports multiple keywords separated by `;` or `；` as specified in requirements
+  - Search is scoped to the currently selected workspace
+  - Empty search automatically shows all files for the workspace
+- **Enhanced FileTableModel with search result support (`gui/models.py`)**:
+  - Added `_set_files()` method to display search-filtered results
+  - Maintains model state consistency with beginResetModel/endResetModel
+  - Properly integrates with existing data access methods
+- **Search integration with core data layer**:
+  - Uses existing FileEntry.search_by_keyword() method from core.scanner
+  - Maintains single source of truth principle (no direct SQL in GUI)
+  - Leverages existing database indexes and parameterized queries for performance
+  - Graceful error handling with user-friendly message boxes
+- **Created comprehensive test coverage**:
+  - Added 2 new unit tests for _set_files() method covering normal and edge cases
+  - Total test count increased to 140 tests (139 passed, 1 skipped)
+  - All existing functionality remains regression-free
+- **Search UI features**:
+  - Case-insensitive file path matching as per specification
+  - Real-time filtering as user types (no need to press Enter)
+  - Clear button provides one-click search reset
+  - Search input maintains focus for continuous searching
+  - Results update automatically when workspace selection changes
+- **Future enhancement ready**: Search foundation prepared for tag-based filtering in Phase 8
+
+## Phase 7: ✅ COMPLETED
+**Phase 7 is now fully completed with comprehensive file table view and dynamic search functionality.**
 
 ## Phase 8: GUI Tag Rendering & Interactions
 - [ ] Implement a custom PySide6 Delegate to render Tags as Pills/Badges within the Table/Tree View.

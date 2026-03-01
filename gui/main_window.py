@@ -263,7 +263,11 @@ class MainWindow(QMainWindow):
         # Clear button
         clear_btn = QPushButton("Clear")
         clear_btn.setObjectName("secondaryButton")
+        clear_btn.clicked.connect(self._on_search_clear)
         search_layout.addWidget(clear_btn)
+
+        # Connect search input to trigger search on text change
+        self.search_input.textChanged.connect(self._on_search_text_changed)
 
         return search_widget
 
@@ -294,6 +298,47 @@ class MainWindow(QMainWindow):
         table.setMinimumHeight(200)
 
         return table
+
+    def _on_search_text_changed(self):
+        """Handle search input text change to filter files dynamically."""
+        search_text = self.search_input.text().strip()
+
+        # If search is empty, show all files for current workspace
+        if not search_text:
+            current_workspace = self.workspace_list.get_selected_workspace()
+            if current_workspace:
+                self.file_table_model.load_workspace_files(current_workspace.id)
+            return
+
+        # Parse search text for keywords (support ; or ； separators)
+        keywords = [keyword.strip() for keyword in search_text.replace('；', ';').split(';') if keyword.strip()]
+
+        if not keywords:
+            return
+
+        # For now, treat all terms as keywords (tags will be enhanced in Phase 8)
+        # Use the first keyword as the main search term
+        main_keyword = keywords[0]
+
+        try:
+            current_workspace = self.workspace_list.get_selected_workspace()
+            workspace_id = current_workspace.id if current_workspace else None
+
+            # Search files using the FileEntry search method
+            from core.scanner import FileEntry
+            filtered_files = FileEntry.search_by_keyword(main_keyword, workspace_id)
+
+            # Update the model with filtered results
+            self.file_table_model._set_files(filtered_files)
+
+        except Exception as e:
+            QMessageBox.warning(self, "Search Error",
+                              f"Failed to search files: {str(e)}")
+
+    def _on_search_clear(self):
+        """Handle clear button click to reset search."""
+        self.search_input.clear()
+        # The textChanged signal will automatically trigger and reload all files
 
     def apply_dark_theme(self):
         """Apply modern dark theme styling similar to VSCode/Cursor."""

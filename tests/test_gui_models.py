@@ -207,6 +207,64 @@ class TestFileTableModel(unittest.TestCase):
         self.model.refresh()
         self.assertEqual(self.model.rowCount(), 0)
 
+    def test_set_files_directly(self):
+        """Test setting files directly for search results."""
+        # Create some sample file entries
+        files = [
+            FileEntry(
+                id=10,
+                workspace_id=self.workspace.id,
+                relative_path="src/main.py",
+                absolute_path="/path/to/src/main.py",
+                file_type="Python"
+            ),
+            FileEntry(
+                id=11,
+                workspace_id=self.workspace.id,
+                relative_path="docs/readme.md",
+                absolute_path="/path/to/docs/readme.md",
+                file_type="Markdown"
+            )
+        ]
+
+        # Set files directly
+        self.model._set_files(files)
+
+        # Verify data
+        self.assertEqual(self.model.rowCount(), 2)
+        self.assertEqual(self.model.get_file_count(), 2)
+
+        # Verify first file
+        index = self.model.index(0, FileTableModel.COL_RELATIVE_PATH)
+        self.assertEqual(self.model.data(index, Qt.DisplayRole), "src/main.py")
+
+        # Verify second file
+        index = self.model.index(1, FileTableModel.COL_RELATIVE_PATH)
+        self.assertEqual(self.model.data(index, Qt.DisplayRole), "docs/readme.md")
+
+        # Verify file objects are accessible
+        file_at_row_0 = self.model.get_file_at_row(0)
+        self.assertIsNotNone(file_at_row_0)
+        self.assertEqual(file_at_row_0.relative_path, "src/main.py")
+
+    def test_set_files_empty_list(self):
+        """Test setting empty list of files."""
+        # Create and set some files first
+        files = [FileEntry(
+            id=12,
+            workspace_id=self.workspace.id,
+            relative_path="test.py",
+            absolute_path="/test.py",
+            file_type="Python"
+        )]
+        self.model._set_files(files)
+        self.assertEqual(self.model.rowCount(), 1)
+
+        # Now set empty list
+        self.model._set_files([])
+        self.assertEqual(self.model.rowCount(), 0)
+        self.assertEqual(self.model.get_file_count(), 0)
+
 
 if __name__ == '__main__':
     unittest.main()
