@@ -141,10 +141,37 @@
 - **GUI foundation ready for Phase 6 (Workspace Dialogs) implementation**
 
 ## Phase 6: GUI Workspace Dialogs
-- [ ] Implement the "New/Edit Workspace" Dialog UI (`gui/dialogs.py`).
-- [ ] Implement functionality in the Workspace Dialog to add/remove folder and file paths.
+- [x] Implement the "New/Edit Workspace" Dialog UI (`gui/dialogs.py`).
+- [x] Implement functionality in the Workspace Dialog to add/remove folder and file paths.
 - [ ] Connect the Workspace Dialog to the database layer to save changes and refresh the `WorkspaceListWidget`.
 - [ ] Commit Git.
+
+### Phase 6 Learnings (In Progress):
+- **Implemented comprehensive WorkspaceDialog class (`gui/dialogs.py`)**:
+  - Single dialog handles both new workspace creation and editing existing workspaces
+  - Modern dark theme UI consistent with main window styling
+  - Workspace name input field with validation
+  - Dynamic paths table showing folder/file paths with type indicators
+  - Add Folder/Add File buttons using OS file/directory pickers
+  - Remove button for each path with confirmation dialog
+  - Proper error handling and user feedback via message boxes
+  - Integrates with core.models (Workspace, WorkspacePath) for database operations
+  - Save/Cancel buttons with form validation
+  - Duplicate path detection and prevention
+  - Tooltips showing full paths for long file names
+- **Dialog features implemented**:
+  - Alternating row colors in paths table for better readability
+  - Resizable columns with appropriate sizing policies
+  - Modal dialog prevents interaction with main window during editing
+  - Proper form layout with consistent spacing and margins
+  - Confirmation dialogs for destructive actions (removing paths)
+  - Warning when creating workspace with no paths
+- **Database integration**:
+  - Uses existing Workspace.create() and WorkspacePath CRUD operations
+  - Maintains single source of truth principle (no direct SQL in GUI)
+  - Proper foreign key relationship handling
+  - Transaction safety with error rollback
+- **Still needed**: Connect dialog to main window's "New Workspace" button and implement workspace refresh after changes
 
 ## Phase 7: GUI File View & Models
 - [ ] Implement `QAbstractTableModel` for the bottom right area to display `file_entry` data efficiently.
