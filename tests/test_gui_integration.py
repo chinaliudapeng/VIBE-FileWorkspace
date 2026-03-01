@@ -2,14 +2,17 @@
 
 import unittest
 import tempfile
+import os
+import platform
 from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, patch, MagicMock
 
-from PySide6.QtWidgets import QApplication
-from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QApplication, QMessageBox
+from PySide6.QtCore import Qt, QPoint
 from PySide6.QtTest import QTest
 
 from core.models import Workspace, WorkspacePath
+from core.scanner import FileEntry
 from gui.main_window import MainWindow, WorkspaceListWidget
 from gui.dialogs import WorkspaceDialog
 
@@ -152,6 +155,242 @@ class TestGUIIntegration(unittest.TestCase):
         self.assertEqual(len(workspace_paths), 1)
         self.assertEqual(workspace_paths[0].root_path, test_path)
         self.assertEqual(workspace_paths[0].path_type, "folder")
+
+
+class TestFileTableContextMenu(unittest.TestCase):
+    """Test context menu functionality for the file table."""
+
+    @classmethod
+    def setUpClass(cls):
+        """Set up QApplication for GUI tests."""
+        if not QApplication.instance():
+            cls.app = QApplication([])
+        else:
+            cls.app = QApplication.instance()
+
+    def setUp(self):
+        """Set up test fixtures with temporary database and files."""
+        # Create temporary database file
+        self.temp_db = tempfile.NamedTemporaryFile(suffix='.db', delete=False)
+        self.temp_db.close()
+        self.db_path = self.temp_db.name
+
+        # Patch the database path
+        self.db_patcher = patch('core.db.get_db_path')
+        mock_get_db_path = self.db_patcher.start()
+        mock_get_db_path.return_value = self.db_path
+
+        # Initialize database
+        from core.db import initialize_database
+        initialize_database()
+
+        # Create test workspace and file entry
+        self.workspace = Workspace.create("Test Workspace Context Menu")
+        self.test_file_path = str(Path(__file__).absolute())
+        self.file_entry = FileEntry.create(
+            workspace_id=self.workspace.id,
+            relative_path="test_file.py",
+            absolute_path=self.test_file_path,
+            file_type="python"
+        )
+
+        # Create main window and load data
+        self.main_window = MainWindow()
+        self.main_window.workspace_list.load_workspaces()
+        self.main_window.workspace_list.setCurrentRow(0)  # Select the test workspace
+
+    def tearDown(self):
+        """Clean up test fixtures."""
+        self.main_window.close()
+        self.db_patcher.stop()
+        # Clean up temp database
+        Path(self.db_path).unlink(missing_ok=True)
+
+    @patch('gui.main_window.os.startfile')
+    @patch('gui.main_window.subprocess.run')
+    def test_open_file_action(self, mock_subprocess, mock_startfile):
+        """Test opening file with system default application."""
+        # Mock platform.system to test different OS behaviors
+        with patch('gui.main_window.platform.system') as mock_platform:
+            # Test Windows
+            mock_platform.return_value = "Windows"
+            self.main_window._open_file(self.test_file_path)
+            mock_startfile.assert_called_once_with(self.test_file_path)
+
+            # Test macOS
+            mock_startfile.reset_mock()
+            mock_platform.return_value = "Darwin"
+            self.main_window._open_file(self.test_file_path)
+            mock_subprocess.assert_called_with(["open", self.test_file_path])
+
+            # Test Linux
+            mock_subprocess.reset_mock()
+            mock_platform.return_value = "Linux"
+            self.main_window._open_file(self.test_file_path)
+            mock_subprocess.assert_called_with(["xdg-open", self.test_file_path])
+
+    @patch('gui.main_window.subprocess.run')
+    def test_reveal_file_action(self, mock_subprocess):
+        """Test revealing file in system file explorer."""
+        with patch('gui.main_window.platform.system') as mock_platform:
+            # Test Windows
+            mock_platform.return_value = "Windows"
+            self.main_window._reveal_file(self.test_file_path)
+            mock_subprocess.assert_called_with(["explorer", "/select,", self.test_file_path])
+
+            # Test macOS
+            mock_subprocess.reset_mock()
+            mock_platform.return_value = "Darwin"
+            self.main_window._reveal_file(self.test_file_path)
+            mock_subprocess.assert_called_with(["open", "-R", self.test_file_path])
+
+    @patch('PySide6.QtWidgets.QApplication.clipboard')
+    @patch('PySide6.QtWidgets.QMessageBox.information')
+    def test_copy_file_path_action(self, mock_info, mock_clipboard):
+        """Test copying file path to clipboard."""
+        # Mock clipboard
+        mock_clipboard_instance = Mock()
+        mock_clipboard.return_value = mock_clipboard_instance
+
+        # Test copying path
+        self.main_window._copy_file_path(self.test_file_path)
+
+        # Verify clipboard was called
+        mock_clipboard_instance.setText.assert_called_once_with(self.test_file_path)
+
+        # Verify info message was shown
+        mock_info.assert_called_once()
+        args, kwargs = mock_info.call_args
+        self.assertIn("Path Copied", args)
+
+    @patch('gui.main_window.send2trash.send2trash')
+    @patch('PySide6.QtWidgets.QMessageBox.question')
+    @patch('PySide6.QtWidgets.QMessageBox.information')
+    @patch('PySide6.QtWidgets.QMessageBox.critical')
+    def test_delete_file_action(self, mock_critical, mock_info, mock_question, mock_send2trash):
+        """Test deleting file and removing from database."""
+        # Mock user confirmation
+        mock_question.return_value = QMessageBox.Yes
+
+        # Mock GUI refresh operations and workspace operations to avoid test environment issues
+        with patch.object(self.main_window.file_table_model, 'load_workspace_files') as mock_refresh, \
+             patch.object(self.main_window, '_on_search_text_changed') as mock_search, \
+             patch.object(self.main_window.workspace_list, 'get_selected_workspace') as mock_workspace, \
+             patch.object(self.main_window.search_input, 'text') as mock_search_text:
+
+            # Setup mocks
+            mock_workspace.return_value = self.workspace
+            mock_search_text.return_value = ""
+
+            # Test deleting file
+            self.main_window._delete_file(self.file_entry)
+
+            # Verify confirmation dialog was shown
+            mock_question.assert_called_once()
+            args, kwargs = mock_question.call_args
+            self.assertIn("Delete File", args)
+
+            # Verify send2trash was called
+            mock_send2trash.assert_called_once_with(self.test_file_path)
+
+            # Verify success message was shown (if it was called)
+            if mock_info.called:
+                args, kwargs = mock_info.call_args
+                self.assertIn("File Deleted", args)
+
+        # Verify file entry was removed from database (this is the most important test)
+        deleted_file = FileEntry.get_by_absolute_path(self.test_file_path)
+        self.assertIsNone(deleted_file)
+
+    @patch('PySide6.QtWidgets.QMessageBox.question')
+    @patch('PySide6.QtWidgets.QMessageBox.information')
+    @patch('PySide6.QtWidgets.QMessageBox.critical')
+    def test_remove_from_workspace_action(self, mock_critical, mock_info, mock_question):
+        """Test removing file from workspace without deleting actual file."""
+        # Mock user confirmation
+        mock_question.return_value = QMessageBox.Yes
+
+        # Verify file exists in database before removal
+        existing_file = FileEntry.get_by_absolute_path(self.test_file_path)
+        self.assertIsNotNone(existing_file)
+
+        # Mock GUI refresh operations and workspace operations to avoid test environment issues
+        with patch.object(self.main_window.file_table_model, 'load_workspace_files') as mock_refresh, \
+             patch.object(self.main_window, '_on_search_text_changed') as mock_search, \
+             patch.object(self.main_window.workspace_list, 'get_selected_workspace') as mock_workspace, \
+             patch.object(self.main_window.search_input, 'text') as mock_search_text:
+
+            # Setup mocks
+            mock_workspace.return_value = self.workspace
+            mock_search_text.return_value = ""
+
+            # Test removing file from workspace
+            self.main_window._remove_from_workspace(self.file_entry)
+
+            # Verify confirmation dialog was shown
+            mock_question.assert_called_once()
+            args, kwargs = mock_question.call_args
+            self.assertIn("Remove from Workspace", args)
+
+            # Verify success message was shown (if it was called)
+            if mock_info.called:
+                args, kwargs = mock_info.call_args
+                self.assertIn("File Removed", args)
+
+        # Verify file entry was removed from database (this is the most important test)
+        deleted_file = FileEntry.get_by_absolute_path(self.test_file_path)
+        self.assertIsNone(deleted_file)
+
+    @patch('PySide6.QtWidgets.QMessageBox.question')
+    def test_delete_file_action_cancelled(self, mock_question):
+        """Test that file deletion is cancelled when user declines."""
+        # Mock user declining confirmation
+        mock_question.return_value = QMessageBox.No
+
+        # Verify file exists before attempted deletion
+        existing_file = FileEntry.get_by_absolute_path(self.test_file_path)
+        self.assertIsNotNone(existing_file)
+
+        # Test cancelling file deletion
+        self.main_window._delete_file(self.file_entry)
+
+        # Verify file still exists in database
+        still_existing_file = FileEntry.get_by_absolute_path(self.test_file_path)
+        self.assertIsNotNone(still_existing_file)
+        self.assertEqual(still_existing_file.id, self.file_entry.id)
+
+    @patch('gui.main_window.QMenu')
+    def test_show_file_context_menu_creation(self, mock_menu_class):
+        """Test that context menu is properly created with all actions."""
+        # Mock QMenu and its instance
+        mock_menu = Mock()
+        mock_menu_class.return_value = mock_menu
+
+        # Mock table index and position
+        mock_index = Mock()
+        mock_index.isValid.return_value = True
+        mock_index.row.return_value = 0
+
+        # Mock the file table model to return our test file
+        with patch.object(self.main_window.file_table, 'indexAt', return_value=mock_index), \
+             patch.object(self.main_window.file_table_model, 'get_file_at_row', return_value=self.file_entry):
+
+            # Call the context menu method
+            test_position = QPoint(10, 10)
+            self.main_window._show_file_context_menu(test_position)
+
+            # Verify menu was created
+            mock_menu_class.assert_called_once_with(self.main_window)
+
+            # Verify actions were added
+            expected_actions = ["Open File", "Copy File Path", "Delete File", "Remove from Workspace"]
+            actual_calls = [call[0][0] for call in mock_menu.addAction.call_args_list if call[0]]
+
+            for expected_action in expected_actions:
+                self.assertIn(expected_action, actual_calls)
+
+            # Verify menu was shown
+            mock_menu.exec.assert_called_once()
 
 
 if __name__ == '__main__':

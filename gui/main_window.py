@@ -1,6 +1,9 @@
 """Main window for the Workspace File Indexer GUI application."""
 
 import sys
+import os
+import subprocess
+import platform
 from pathlib import Path
 from typing import Optional
 from PySide6.QtWidgets import (
@@ -9,7 +12,8 @@ from PySide6.QtWidgets import (
     QMessageBox, QMenu, QDialog, QTableView, QHeaderView
 )
 from PySide6.QtCore import Qt, QSize, Signal
-from PySide6.QtGui import QFont, QIcon
+from PySide6.QtGui import QFont, QIcon, QClipboard
+import send2trash
 
 # Import core data models
 from core.models import Workspace
@@ -299,6 +303,10 @@ class MainWindow(QMainWindow):
         table.verticalHeader().setVisible(False)
         table.verticalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
 
+        # Enable context menu for file operations
+        table.setContextMenuPolicy(Qt.CustomContextMenu)
+        table.customContextMenuRequested.connect(self._show_file_context_menu)
+
         # Set minimum height
         table.setMinimumHeight(200)
 
@@ -344,6 +352,172 @@ class MainWindow(QMainWindow):
         """Handle clear button click to reset search."""
         self.search_input.clear()
         # The textChanged signal will automatically trigger and reload all files
+
+    def _show_file_context_menu(self, position):
+        """Show context menu for file table items."""
+        # Get the index and file entry at the clicked position
+        index = self.file_table.indexAt(position)
+        if not index.isValid():
+            return
+
+        # Get file entry from the model
+        file_entry = self.file_table_model.get_file_at_row(index.row())
+        if not file_entry:
+            return
+
+        # Create context menu
+        menu = QMenu(self)
+
+        # Open File action
+        open_action = menu.addAction("Open File")
+        open_action.triggered.connect(lambda: self._open_file(file_entry.absolute_path))
+
+        # Reveal in Explorer/Finder action
+        reveal_text = "Reveal in Explorer" if platform.system() == "Windows" else "Reveal in Finder"
+        reveal_action = menu.addAction(reveal_text)
+        reveal_action.triggered.connect(lambda: self._reveal_file(file_entry.absolute_path))
+
+        # Copy File Path action
+        copy_action = menu.addAction("Copy File Path")
+        copy_action.triggered.connect(lambda: self._copy_file_path(file_entry.absolute_path))
+
+        menu.addSeparator()
+
+        # TODO: Assign/Edit Tags action (will be implemented in a later task)
+        # assign_tags_action = menu.addAction("Assign/Edit Tags")
+        # assign_tags_action.triggered.connect(lambda: self._assign_tags(file_entry))
+
+        # Delete File action
+        delete_action = menu.addAction("Delete File")
+        delete_action.triggered.connect(lambda: self._delete_file(file_entry))
+
+        # Remove from Workspace action
+        remove_action = menu.addAction("Remove from Workspace")
+        remove_action.triggered.connect(lambda: self._remove_from_workspace(file_entry))
+
+        # Show menu at cursor position
+        menu.exec(self.file_table.mapToGlobal(position))
+
+    def _open_file(self, file_path):
+        """Open file with system default application."""
+        try:
+            if platform.system() == "Windows":
+                os.startfile(file_path)
+            elif platform.system() == "Darwin":  # macOS
+                subprocess.run(["open", file_path])
+            else:  # Linux
+                subprocess.run(["xdg-open", file_path])
+        except Exception as e:
+            QMessageBox.warning(self, "Error Opening File",
+                              f"Failed to open file: {str(e)}")
+
+    def _reveal_file(self, file_path):
+        """Reveal file in system file explorer."""
+        try:
+            if platform.system() == "Windows":
+                subprocess.run(["explorer", "/select,", file_path])
+            elif platform.system() == "Darwin":  # macOS
+                subprocess.run(["open", "-R", file_path])
+            else:  # Linux
+                # Try common file managers
+                file_managers = ["nautilus", "dolphin", "thunar", "pcmanfm"]
+                parent_dir = str(Path(file_path).parent)
+                for manager in file_managers:
+                    try:
+                        subprocess.run([manager, parent_dir])
+                        break
+                    except FileNotFoundError:
+                        continue
+                else:
+                    # Fallback to opening parent directory
+                    subprocess.run(["xdg-open", parent_dir])
+        except Exception as e:
+            QMessageBox.warning(self, "Error Revealing File",
+                              f"Failed to reveal file: {str(e)}")
+
+    def _copy_file_path(self, file_path):
+        """Copy file path to clipboard."""
+        try:
+            clipboard = QApplication.clipboard()
+            clipboard.setText(file_path)
+
+            # Show brief success message
+            QMessageBox.information(self, "Path Copied",
+                                  f"File path copied to clipboard:\n{file_path}")
+        except Exception as e:
+            QMessageBox.warning(self, "Error Copying Path",
+                              f"Failed to copy file path: {str(e)}")
+
+    def _delete_file(self, file_entry):
+        """Delete file using send2trash for safe deletion."""
+        file_path = file_entry.absolute_path
+
+        # Ask for confirmation
+        reply = QMessageBox.question(
+            self, "Delete File",
+            f"Are you sure you want to delete this file?\n\n{file_path}\n\n"
+            f"This will move the file to the Recycle Bin/Trash.",
+            QMessageBox.Yes | QMessageBox.No
+        )
+
+        if reply == QMessageBox.Yes:
+            try:
+                # Move file to trash using send2trash
+                send2trash.send2trash(file_path)
+
+                # Remove file entry from database
+                from core.scanner import FileEntry
+                FileEntry.delete_by_absolute_path(file_entry.absolute_path)
+
+                # Refresh the current view
+                current_workspace = self.workspace_list.get_selected_workspace()
+                if current_workspace:
+                    if self.search_input.text().strip():
+                        # If search is active, re-run search
+                        self._on_search_text_changed()
+                    else:
+                        # Otherwise reload workspace files
+                        self.file_table_model.load_workspace_files(current_workspace.id)
+
+                QMessageBox.information(self, "File Deleted",
+                                      f"File moved to trash successfully.")
+            except Exception as e:
+                QMessageBox.critical(self, "Error Deleting File",
+                                   f"Failed to delete file: {str(e)}")
+
+    def _remove_from_workspace(self, file_entry):
+        """Remove file from workspace without deleting the actual file."""
+        file_path = file_entry.absolute_path
+
+        # Ask for confirmation
+        reply = QMessageBox.question(
+            self, "Remove from Workspace",
+            f"Remove this file from the workspace index?\n\n{file_path}\n\n"
+            f"The actual file will not be deleted.",
+            QMessageBox.Yes | QMessageBox.No
+        )
+
+        if reply == QMessageBox.Yes:
+            try:
+                # Remove file entry from database
+                from core.scanner import FileEntry
+                FileEntry.delete_by_absolute_path(file_entry.absolute_path)
+
+                # Refresh the current view
+                current_workspace = self.workspace_list.get_selected_workspace()
+                if current_workspace:
+                    if self.search_input.text().strip():
+                        # If search is active, re-run search
+                        self._on_search_text_changed()
+                    else:
+                        # Otherwise reload workspace files
+                        self.file_table_model.load_workspace_files(current_workspace.id)
+
+                QMessageBox.information(self, "File Removed",
+                                      f"File removed from workspace index.")
+            except Exception as e:
+                QMessageBox.critical(self, "Error Removing File",
+                                   f"Failed to remove file from workspace: {str(e)}")
 
     def apply_dark_theme(self):
         """Apply modern dark theme styling similar to VSCode/Cursor."""

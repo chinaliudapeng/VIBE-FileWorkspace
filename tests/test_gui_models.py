@@ -131,7 +131,8 @@ class TestFileTableModel(unittest.TestCase):
         self.assertEqual(self.model.data(index, Qt.DisplayRole), "/home/user/test/src/main.py")
 
         index = self.model.index(0, FileTableModel.COL_TAGS)
-        self.assertEqual(self.model.data(index, Qt.DisplayRole), "Tags coming in Phase 8")
+        # Tags column returns empty string for DisplayRole (custom delegate handles rendering)
+        self.assertEqual(self.model.data(index, Qt.DisplayRole), "")
 
     @patch('core.scanner.FileEntry.get_files_for_workspace')
     def test_data_tooltip_role(self, mock_get_files):
