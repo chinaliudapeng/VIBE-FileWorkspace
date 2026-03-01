@@ -6,6 +6,7 @@ from PySide6.QtGui import QFont
 
 # Import core data models
 from core.scanner import FileEntry
+from core.models import Tag
 
 
 class FileTableModel(QAbstractTableModel):
@@ -51,8 +52,9 @@ class FileTableModel(QAbstractTableModel):
             elif column == self.COL_ABSOLUTE_PATH:
                 return file_entry.absolute_path
             elif column == self.COL_TAGS:
-                # TODO: Implement in Phase 8 - get tags for this file
-                return "Tags coming in Phase 8"
+                # Tags are rendered by the custom delegate, not as text
+                # Return empty string for display, delegate handles the rendering
+                return ""
 
         elif role == Qt.ToolTipRole:
             # Show full absolute path as tooltip for all columns

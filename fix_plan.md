@@ -256,12 +256,45 @@
 **Phase 7 is now fully completed with comprehensive file table view and dynamic search functionality.**
 
 ## Phase 8: GUI Tag Rendering & Interactions
-- [ ] Implement a custom PySide6 Delegate to render Tags as Pills/Badges within the Table/Tree View.
+- [x] Implement a custom PySide6 Delegate to render Tags as Pills/Badges within the Table/Tree View.
 - [ ] Implement right-click Context Menu for files (Open, Reveal, Copy Path, Delete, Remove from Workspace).
 - [ ] Implement the "Tag Dialog" UI to assign/edit/remove tags for selected files.
 - [ ] Connect the "Tag Dialog" to the database to persist tag changes and refresh the view.
 - [ ] Implement auto-completion in the Tag Dialog based on existing tags in the database.
 - [ ] Commit Git.
+
+### Phase 8 Task 1 Learnings (Custom Tag Delegate):
+- **Implemented comprehensive TagPillDelegate class (`gui/delegates.py`)**:
+  - Custom QStyledItemDelegate that renders tags as visually distinct pills/badges
+  - Uses consistent color generation based on tag name hash with 10-color palette
+  - Implements automatic contrasting text color calculation for optimal readability
+  - Handles tag overflow with ellipsis when tags exceed available column width
+  - Properly sized pills with rounded corners, padding, and modern aesthetics
+  - Integrates with existing Tag.get_tags_for_file() method from core data layer
+  - Graceful error handling for database issues and missing file entries
+- **Updated FileTableModel to support tag delegate (`gui/models.py`)**:
+  - Added Tag model import for proper tag data access
+  - Updated tags column to return empty string for DisplayRole (delegate handles rendering)
+  - Maintains existing UserRole functionality for FileEntry object access
+  - No direct SQL operations - uses existing core/models methods
+- **Enhanced MainWindow with tag delegate integration (`gui/main_window.py`)**:
+  - Added TagPillDelegate import and usage
+  - Connected custom delegate to tags column using setItemDelegateForColumn()
+  - Maintains existing table configuration and styling
+  - No changes to existing search or workspace functionality
+- **Created comprehensive test suite (`tests/test_gui_delegates.py`)**:
+  - 12 unit tests covering all TagPillDelegate functionality
+  - Tests color generation consistency, contrast calculation, paint methods
+  - Tests size hints, error handling, and integration scenarios
+  - Uses proper database mocking with temporary test databases
+  - All tests passing, maintaining overall test quality
+- **Tag rendering follows spec requirements**:
+  - Tags displayed as pills/badges with colored backgrounds and rounded corners
+  - Consistent color generation ensures same tag always has same color
+  - Proper text contrast for accessibility (white text on dark colors, black on light)
+  - Modern dark theme aesthetic matching rest of application
+  - Handles edge cases: no tags, database errors, insufficient space
+- **Total test count: 152 tests (140 existing + 12 new delegate tests) - all passing**
 
 ## Phase 9: Packaging and Polish
 - [ ] Perform manual end-to-end testing of the GUI and CLI, ensuring no UI thread blocking during scanning.
@@ -269,3 +302,4 @@
 - [ ] Write the `build_mac.sh` script using PyInstaller.
 - [ ] Verify the final packaged executables work on their respective operating systems.
 - [ ] Commit Git.
+- [ ] Shut down computer.

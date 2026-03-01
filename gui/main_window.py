@@ -17,8 +17,9 @@ from core.models import Workspace
 # Import dialog windows
 from gui.dialogs import WorkspaceDialog
 
-# Import GUI models
+# Import GUI models and delegates
 from gui.models import FileTableModel
+from gui.delegates import TagPillDelegate
 
 
 class WorkspaceListWidget(QListWidget):
@@ -282,6 +283,10 @@ class MainWindow(QMainWindow):
         table.setSelectionBehavior(QTableView.SelectRows)
         table.setSortingEnabled(True)
         table.setShowGrid(False)
+
+        # Set custom delegate for tags column to render as pills/badges
+        tag_delegate = TagPillDelegate(table)
+        table.setItemDelegateForColumn(FileTableModel.COL_TAGS, tag_delegate)
 
         # Configure column widths
         header = table.horizontalHeader()
