@@ -107,11 +107,38 @@
 - **Total test count: 121 tests (113 existing + 8 CLI) - all passing**
 - **CLI ready for AI agent integration and packaging phase**
 
-## Phase 5: GUI Foundation
-- [ ] Create the basic PySide6 `MainWindow` application shell (`gui/main_window.py`).
-- [ ] Implement the main layout with a horizontal `QSplitter` separating the left and right areas.
-- [ ] Implement the `WorkspaceListWidget` for the left area displaying workspaces from the database.
-- [ ] Commit Git.
+## Phase 5: GUI Foundation ✅ COMPLETED
+- [x] Create the basic PySide6 `MainWindow` application shell (`gui/main_window.py`).
+- [x] Implement the main layout with a horizontal `QSplitter` separating the left and right areas.
+- [x] Implement the `WorkspaceListWidget` for the left area displaying workspaces from the database.
+- [x] Commit Git.
+
+### Phase 5 Learnings:
+- **Implemented basic PySide6 MainWindow application shell (`gui/main_window.py`)**:
+  - Created modern dark theme UI similar to VSCode/Cursor with proper color palette
+  - Dark gray/blue backgrounds with off-white/light gray text for optimal readability
+  - Modern aesthetics: rounded corners, subtle borders, hover effects, accent colors
+  - Responsive layout with proper spacing and margins
+- **Implemented horizontal QSplitter layout**:
+  - Left sidebar takes 20-25% width by default (300px out of 1200px window)
+  - Right area takes remaining 75% for search and file display
+  - Splitter handle with hover effects and smooth resize capability
+  - Proper responsive design maintaining proportions
+- **Enhanced WorkspaceListWidget with database integration**:
+  - Custom WorkspaceListWidget class extending QListWidget with database connectivity
+  - Direct integration with core.models.Workspace using Workspace.list_all() method
+  - Real-time workspace selection with signal/slot communication
+  - Proper error handling for database connection issues
+  - Auto-selection of first workspace when available
+  - Refresh capability to reload workspaces from database
+  - Workspace objects stored as QListWidgetItem user data for efficient access
+- **GUI properly integrates with existing core data layer**:
+  - Uses same SQLite database as CLI application (single source of truth)
+  - No direct SQL in GUI - all operations route through core/ models as required
+  - Maintains data consistency and foreign key relationships
+  - Follows established patterns from CLI implementation
+- **All 121 unit tests continue to pass** - no regressions introduced
+- **GUI foundation ready for Phase 6 (Workspace Dialogs) implementation**
 
 ## Phase 6: GUI Workspace Dialogs
 - [ ] Implement the "New/Edit Workspace" Dialog UI (`gui/dialogs.py`).
