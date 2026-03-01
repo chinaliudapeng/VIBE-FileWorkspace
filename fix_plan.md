@@ -41,6 +41,7 @@
 - [ ] Write unit tests for the scanner using a temporary directory structure.
 - [ ] Implement `watchdog` integration (`core/watcher.py`) to detect file additions/deletions and update the database accordingly.
 - [ ] Write tests/mocks to verify `watchdog` correctly updates the `file_entry` table.
+- [ ] Commit Git.
 
 ## Phase 4: CLI Implementation
 - [ ] Create basic CLI structure using `click` or `argparse` in `cli/main.py`.
@@ -49,22 +50,26 @@
 - [ ] Implement CLI command: `add-tag --path <absolute_path> --tag <name>`.
 - [ ] Implement CLI command: `search --keyword` and `search --tags`, outputting JSON.
 - [ ] Write integration tests for the CLI to ensure it interacts correctly with the Core Data Layer.
+- [ ] Commit Git.
 
 ## Phase 5: GUI Foundation
 - [ ] Create the basic PySide6 `MainWindow` application shell (`gui/main_window.py`).
 - [ ] Implement the main layout with a horizontal `QSplitter` separating the left and right areas.
 - [ ] Implement the `WorkspaceListWidget` for the left area displaying workspaces from the database.
+- [ ] Commit Git.
 
 ## Phase 6: GUI Workspace Dialogs
 - [ ] Implement the "New/Edit Workspace" Dialog UI (`gui/dialogs.py`).
 - [ ] Implement functionality in the Workspace Dialog to add/remove folder and file paths.
 - [ ] Connect the Workspace Dialog to the database layer to save changes and refresh the `WorkspaceListWidget`.
+- [ ] Commit Git.
 
 ## Phase 7: GUI File View & Models
 - [ ] Implement `QAbstractTableModel` for the bottom right area to display `file_entry` data efficiently.
 - [ ] Implement the Table/Tree View in the bottom right area and connect it to the custom Model.
 - [ ] Implement the Top Right Area with a Search Input box and Clear button.
 - [ ] Connect the Search Input to the Model/Database to filter the displayed files dynamically.
+- [ ] Commit Git.
 
 ## Phase 8: GUI Tag Rendering & Interactions
 - [ ] Implement a custom PySide6 Delegate to render Tags as Pills/Badges within the Table/Tree View.
@@ -72,9 +77,11 @@
 - [ ] Implement the "Tag Dialog" UI to assign/edit/remove tags for selected files.
 - [ ] Connect the "Tag Dialog" to the database to persist tag changes and refresh the view.
 - [ ] Implement auto-completion in the Tag Dialog based on existing tags in the database.
+- [ ] Commit Git.
 
 ## Phase 9: Packaging and Polish
 - [ ] Perform manual end-to-end testing of the GUI and CLI, ensuring no UI thread blocking during scanning.
 - [ ] Write the `build_windows.ps1` (or `.bat`) script using PyInstaller.
 - [ ] Write the `build_mac.sh` script using PyInstaller.
 - [ ] Verify the final packaged executables work on their respective operating systems.
+- [ ] Commit Git.
