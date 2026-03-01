@@ -2,17 +2,19 @@
 
 import os
 from pathlib import Path
-from typing import Optional, List
+from typing import Optional, List, Set
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QFormLayout,
     QLineEdit, QPushButton, QTableWidget, QTableWidgetItem,
-    QHeaderView, QMessageBox, QFileDialog, QLabel, QWidget
+    QHeaderView, QMessageBox, QFileDialog, QLabel, QWidget,
+    QCompleter, QScrollArea, QFrame, QSizePolicy, QApplication
 )
-from PySide6.QtCore import Qt, QSize
-from PySide6.QtGui import QFont, QIcon
+from PySide6.QtCore import Qt, QSize, QStringListModel, QTimer
+from PySide6.QtGui import QFont, QIcon, QPalette, QPainter, QFontMetrics
 
 # Import core data models
-from core.models import Workspace, WorkspacePath
+from core.models import Workspace, WorkspacePath, Tag
+from core.scanner import FileEntry
 
 
 class WorkspaceDialog(QDialog):
@@ -444,5 +446,492 @@ class WorkspaceDialog(QDialog):
             QFormLayout QLabel {{
                 color: {text_primary};
                 font-weight: 500;
+            }}
+        """)
+
+
+class TagPillWidget(QWidget):
+    """Widget to display a tag as a removable pill/badge."""
+
+    def __init__(self, tag_name: str, parent=None):
+        super().__init__(parent)
+        self.tag_name = tag_name
+        self.removable = True
+        self.init_ui()
+
+    def init_ui(self):
+        """Initialize the tag pill UI."""
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(8, 4, 8, 4)
+        layout.setSpacing(6)
+
+        # Tag label
+        self.tag_label = QLabel(self.tag_name)
+        self.tag_label.setObjectName("tagLabel")
+        layout.addWidget(self.tag_label)
+
+        # Remove button
+        if self.removable:
+            self.remove_btn = QPushButton("×")
+            self.remove_btn.setObjectName("tagRemoveButton")
+            self.remove_btn.setFixedSize(16, 16)
+            self.remove_btn.clicked.connect(self.remove_requested)
+            layout.addWidget(self.remove_btn)
+
+        self.setFixedHeight(24)
+        self.apply_pill_style()
+
+    def remove_requested(self):
+        """Signal that this tag should be removed."""
+        if self.parent() and hasattr(self.parent(), '_remove_tag_pill'):
+            self.parent()._remove_tag_pill(self)
+
+    def apply_pill_style(self):
+        """Apply pill/badge styling to the widget."""
+        # Generate color based on tag name hash (similar to TagPillDelegate)
+        colors = [
+            "#e74c3c", "#3498db", "#2ecc71", "#f39c12",
+            "#9b59b6", "#1abc9c", "#e67e22", "#34495e",
+            "#e91e63", "#ff9800"
+        ]
+        color = colors[hash(self.tag_name) % len(colors)]
+
+        # Calculate contrasting text color
+        text_color = "#ffffff" if self._is_dark_color(color) else "#000000"
+
+        self.setStyleSheet(f"""
+            TagPillWidget {{
+                background-color: {color};
+                border-radius: 12px;
+                margin: 2px;
+            }}
+            QLabel#tagLabel {{
+                color: {text_color};
+                font-size: 12px;
+                font-weight: 500;
+                background: transparent;
+                border: none;
+            }}
+            QPushButton#tagRemoveButton {{
+                background: transparent;
+                border: none;
+                color: {text_color};
+                font-weight: bold;
+                font-size: 14px;
+                border-radius: 8px;
+            }}
+            QPushButton#tagRemoveButton:hover {{
+                background-color: rgba(255, 255, 255, 0.2);
+            }}
+        """)
+
+    def _is_dark_color(self, color_hex: str) -> bool:
+        """Determine if a color is dark (for text contrast)."""
+        color_hex = color_hex.lstrip('#')
+        r = int(color_hex[0:2], 16)
+        g = int(color_hex[2:4], 16)
+        b = int(color_hex[4:6], 16)
+        brightness = (r * 299 + g * 587 + b * 114) / 1000
+        return brightness < 128
+
+
+class TagDialog(QDialog):
+    """Dialog for assigning, editing, and removing tags for selected files."""
+
+    def __init__(self, parent=None, file_entry: Optional[FileEntry] = None):
+        super().__init__(parent)
+
+        self.file_entry = file_entry
+        self.current_tags: Set[str] = set()
+        self.original_tags: Set[str] = set()
+        self.all_existing_tags: List[str] = []
+
+        self.init_ui()
+        self.apply_theme()
+        self.load_existing_data()
+
+    def init_ui(self):
+        """Initialize the user interface."""
+        # Set window properties
+        self.setWindowTitle("Assign/Edit Tags")
+        self.setModal(True)
+        self.setMinimumSize(QSize(500, 400))
+        self.resize(600, 500)
+
+        # Main layout
+        main_layout = QVBoxLayout(self)
+        main_layout.setSpacing(15)
+        main_layout.setContentsMargins(20, 20, 20, 20)
+
+        # Title and file info
+        title_section = self.create_title_section()
+        main_layout.addWidget(title_section)
+
+        # Current tags section
+        current_tags_section = self.create_current_tags_section()
+        main_layout.addWidget(current_tags_section, 1)  # Expand this section
+
+        # Add new tag section
+        add_tag_section = self.create_add_tag_section()
+        main_layout.addWidget(add_tag_section)
+
+        # Buttons section
+        buttons_section = self.create_buttons_section()
+        main_layout.addWidget(buttons_section)
+
+    def create_title_section(self) -> QWidget:
+        """Create the title and file info section."""
+        section = QWidget()
+        layout = QVBoxLayout(section)
+        layout.setSpacing(5)
+
+        # Dialog title
+        title_label = QLabel("Assign/Edit Tags")
+        title_label.setObjectName("dialogTitle")
+        layout.addWidget(title_label)
+
+        # File info
+        if self.file_entry:
+            file_info = QLabel(f"File: {self.file_entry.relative_path}")
+            file_info.setObjectName("fileInfo")
+            file_info.setWordWrap(True)
+            layout.addWidget(file_info)
+
+        return section
+
+    def create_current_tags_section(self) -> QWidget:
+        """Create the current tags display section."""
+        section = QWidget()
+        layout = QVBoxLayout(section)
+        layout.setSpacing(10)
+
+        # Section title
+        tags_label = QLabel("Current Tags")
+        tags_label.setObjectName("sectionLabel")
+        layout.addWidget(tags_label)
+
+        # Scrollable area for tag pills
+        scroll_area = QScrollArea()
+        scroll_area.setObjectName("tagScrollArea")
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        scroll_area.setMinimumHeight(150)
+
+        # Container widget for tag pills
+        self.tags_container = QWidget()
+        self.tags_container.setObjectName("tagsContainer")
+        self.tags_layout = QVBoxLayout(self.tags_container)
+        self.tags_layout.setSpacing(5)
+        self.tags_layout.setAlignment(Qt.AlignTop)
+
+        scroll_area.setWidget(self.tags_container)
+        layout.addWidget(scroll_area)
+
+        return section
+
+    def create_add_tag_section(self) -> QWidget:
+        """Create the add new tag section."""
+        section = QWidget()
+        layout = QVBoxLayout(section)
+        layout.setSpacing(10)
+
+        # Section title
+        add_label = QLabel("Add New Tag")
+        add_label.setObjectName("sectionLabel")
+        layout.addWidget(add_label)
+
+        # Input and button layout
+        input_layout = QHBoxLayout()
+
+        # Tag input with auto-completion
+        self.tag_input = QLineEdit()
+        self.tag_input.setObjectName("tagInput")
+        self.tag_input.setPlaceholderText("Type tag name...")
+        self.tag_input.returnPressed.connect(self.add_tag)
+        input_layout.addWidget(self.tag_input, 1)
+
+        # Add button
+        self.add_btn = QPushButton("Add")
+        self.add_btn.setObjectName("primaryButton")
+        self.add_btn.clicked.connect(self.add_tag)
+        input_layout.addWidget(self.add_btn)
+
+        layout.addLayout(input_layout)
+
+        return section
+
+    def create_buttons_section(self) -> QWidget:
+        """Create the dialog buttons section."""
+        section = QWidget()
+        layout = QHBoxLayout(section)
+        layout.addStretch()
+
+        # Cancel button
+        self.cancel_btn = QPushButton("Cancel")
+        self.cancel_btn.setObjectName("secondaryButton")
+        self.cancel_btn.clicked.connect(self.reject)
+        layout.addWidget(self.cancel_btn)
+
+        # Apply button
+        self.apply_btn = QPushButton("Apply")
+        self.apply_btn.setObjectName("primaryButton")
+        self.apply_btn.clicked.connect(self.apply_changes)
+        layout.addWidget(self.apply_btn)
+
+        return section
+
+    def load_existing_data(self):
+        """Load existing tags for the file and all tags for auto-completion."""
+        if not self.file_entry:
+            return
+
+        try:
+            # Load current file tags
+            file_tags = Tag.get_tags_for_file(self.file_entry.id)
+            self.current_tags = {tag.tag_name for tag in file_tags}
+            self.original_tags = self.current_tags.copy()
+
+            # Load all existing tags for auto-completion
+            self.all_existing_tags = Tag.get_all_unique_tags()
+
+            # Set up auto-completion
+            completer = QCompleter(self.all_existing_tags)
+            completer.setCaseSensitivity(Qt.CaseInsensitive)
+            completer.setCompletionMode(QCompleter.PopupCompletion)
+            self.tag_input.setCompleter(completer)
+
+            # Refresh the tags display
+            self.refresh_tags_display()
+
+        except Exception as e:
+            QMessageBox.warning(self, "Error", f"Failed to load tag data: {str(e)}")
+
+    def refresh_tags_display(self):
+        """Refresh the visual display of current tags."""
+        # Clear existing tag widgets
+        for i in reversed(range(self.tags_layout.count())):
+            child = self.tags_layout.itemAt(i).widget()
+            if child:
+                child.deleteLater()
+
+        # Add tag pills for current tags
+        if self.current_tags:
+            # Create a flow layout for tag pills
+            current_row_layout = QHBoxLayout()
+            current_row_layout.setSpacing(5)
+            current_row_layout.setAlignment(Qt.AlignLeft)
+
+            row_width = 0
+            max_width = 400  # Approximate container width
+
+            for tag_name in sorted(self.current_tags):
+                tag_pill = TagPillWidget(tag_name, self)
+
+                # Estimate pill width (rough calculation)
+                pill_width = len(tag_name) * 8 + 40  # Rough estimate
+
+                # If this pill would exceed row width, start a new row
+                if row_width + pill_width > max_width and row_width > 0:
+                    # Add current row to layout
+                    row_widget = QWidget()
+                    row_widget.setLayout(current_row_layout)
+                    self.tags_layout.addWidget(row_widget)
+
+                    # Start new row
+                    current_row_layout = QHBoxLayout()
+                    current_row_layout.setSpacing(5)
+                    current_row_layout.setAlignment(Qt.AlignLeft)
+                    row_width = 0
+
+                current_row_layout.addWidget(tag_pill)
+                row_width += pill_width
+
+            # Add the last row
+            if current_row_layout.count() > 0:
+                current_row_layout.addStretch()  # Push pills to the left
+                row_widget = QWidget()
+                row_widget.setLayout(current_row_layout)
+                self.tags_layout.addWidget(row_widget)
+        else:
+            # Show "No tags" message
+            no_tags_label = QLabel("No tags assigned")
+            no_tags_label.setObjectName("noTagsLabel")
+            no_tags_label.setAlignment(Qt.AlignCenter)
+            self.tags_layout.addWidget(no_tags_label)
+
+        # Add stretch to push content to top
+        self.tags_layout.addStretch()
+
+    def _remove_tag_pill(self, tag_pill: TagPillWidget):
+        """Remove a tag from the current tags set."""
+        if tag_pill.tag_name in self.current_tags:
+            self.current_tags.remove(tag_pill.tag_name)
+            self.refresh_tags_display()
+
+    def add_tag(self):
+        """Add a new tag from the input field."""
+        tag_name = self.tag_input.text().strip()
+
+        if not tag_name:
+            QMessageBox.warning(self, "Invalid Tag", "Please enter a tag name.")
+            self.tag_input.setFocus()
+            return
+
+        if tag_name in self.current_tags:
+            QMessageBox.information(self, "Duplicate Tag", "This tag is already assigned to the file.")
+            self.tag_input.clear()
+            self.tag_input.setFocus()
+            return
+
+        # Add the tag
+        self.current_tags.add(tag_name)
+        self.tag_input.clear()
+        self.refresh_tags_display()
+        self.tag_input.setFocus()
+
+    def apply_changes(self):
+        """Apply tag changes to the database."""
+        if not self.file_entry:
+            self.reject()
+            return
+
+        try:
+            # Determine which tags to add and remove
+            tags_to_add = self.current_tags - self.original_tags
+            tags_to_remove = self.original_tags - self.current_tags
+
+            # Remove tags
+            for tag_name in tags_to_remove:
+                Tag.remove_tag_from_file(self.file_entry.id, tag_name)
+
+            # Add tags
+            for tag_name in tags_to_add:
+                Tag.add_tag_to_file(self.file_entry.id, tag_name)
+
+            self.accept()  # Close dialog with success
+
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Failed to save tag changes: {str(e)}")
+
+    def apply_theme(self):
+        """Apply dark theme styling consistent with main window."""
+        # Color palette (matching main_window.py and WorkspaceDialog)
+        bg_primary = "#1e1e1e"      # Main background
+        bg_secondary = "#252526"    # Secondary background
+        bg_tertiary = "#2d2d30"     # Tertiary background
+        accent_blue = "#007acc"     # Accent color
+        text_primary = "#cccccc"    # Primary text
+        text_secondary = "#969696"  # Secondary text
+        border_color = "#3e3e42"    # Border color
+        hover_color = "#2a2d2e"     # Hover background
+
+        self.setStyleSheet(f"""
+            /* Dialog */
+            QDialog {{
+                background-color: {bg_primary};
+                color: {text_primary};
+                font-family: 'Segoe UI', Arial, sans-serif;
+                font-size: 13px;
+            }}
+
+            /* Dialog title */
+            QLabel#dialogTitle {{
+                color: {text_primary};
+                font-size: 18px;
+                font-weight: bold;
+                margin-bottom: 5px;
+            }}
+
+            /* File info */
+            QLabel#fileInfo {{
+                color: {text_secondary};
+                font-size: 12px;
+                margin-bottom: 10px;
+            }}
+
+            /* Section labels */
+            QLabel#sectionLabel {{
+                color: {text_primary};
+                font-size: 14px;
+                font-weight: 600;
+                margin: 5px 0;
+            }}
+
+            /* Tag input */
+            QLineEdit#tagInput {{
+                background-color: {bg_secondary};
+                border: 1px solid {border_color};
+                border-radius: 6px;
+                padding: 8px 12px;
+                font-size: 13px;
+                color: {text_primary};
+            }}
+
+            QLineEdit#tagInput:focus {{
+                border-color: {accent_blue};
+                outline: none;
+            }}
+
+            QLineEdit#tagInput::placeholder {{
+                color: {text_secondary};
+            }}
+
+            /* Scroll area for tags */
+            QScrollArea#tagScrollArea {{
+                background-color: {bg_secondary};
+                border: 1px solid {border_color};
+                border-radius: 6px;
+            }}
+
+            /* Tags container */
+            QWidget#tagsContainer {{
+                background-color: transparent;
+            }}
+
+            /* No tags label */
+            QLabel#noTagsLabel {{
+                color: {text_secondary};
+                font-style: italic;
+                margin: 20px;
+            }}
+
+            /* Primary buttons */
+            QPushButton#primaryButton {{
+                background-color: {accent_blue};
+                border: none;
+                border-radius: 6px;
+                padding: 8px 20px;
+                color: white;
+                font-weight: 500;
+                font-size: 13px;
+                min-width: 80px;
+            }}
+
+            QPushButton#primaryButton:hover {{
+                background-color: #1177bb;
+            }}
+
+            QPushButton#primaryButton:pressed {{
+                background-color: #005a9e;
+            }}
+
+            /* Secondary buttons */
+            QPushButton#secondaryButton {{
+                background-color: {bg_tertiary};
+                border: 1px solid {border_color};
+                border-radius: 6px;
+                padding: 8px 16px;
+                color: {text_primary};
+                font-size: 13px;
+            }}
+
+            QPushButton#secondaryButton:hover {{
+                background-color: {hover_color};
+                border-color: {accent_blue};
+            }}
+
+            QPushButton#secondaryButton:pressed {{
+                background-color: {bg_secondary};
             }}
         """)

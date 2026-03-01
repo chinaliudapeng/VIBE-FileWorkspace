@@ -19,7 +19,7 @@ import send2trash
 from core.models import Workspace
 
 # Import dialog windows
-from gui.dialogs import WorkspaceDialog
+from gui.dialogs import WorkspaceDialog, TagDialog
 
 # Import GUI models and delegates
 from gui.models import FileTableModel
@@ -383,9 +383,9 @@ class MainWindow(QMainWindow):
 
         menu.addSeparator()
 
-        # TODO: Assign/Edit Tags action (will be implemented in a later task)
-        # assign_tags_action = menu.addAction("Assign/Edit Tags")
-        # assign_tags_action.triggered.connect(lambda: self._assign_tags(file_entry))
+        # Assign/Edit Tags action
+        assign_tags_action = menu.addAction("Assign/Edit Tags")
+        assign_tags_action.triggered.connect(lambda: self._assign_tags(file_entry))
 
         # Delete File action
         delete_action = menu.addAction("Delete File")
@@ -518,6 +518,28 @@ class MainWindow(QMainWindow):
             except Exception as e:
                 QMessageBox.critical(self, "Error Removing File",
                                    f"Failed to remove file from workspace: {str(e)}")
+
+    def _assign_tags(self, file_entry):
+        """Open TagDialog to assign/edit tags for the selected file."""
+        try:
+            # Open the TagDialog with the selected file
+            dialog = TagDialog(self, file_entry)
+
+            # If user applies changes, refresh the view to show updated tags
+            if dialog.exec() == QDialog.Accepted:
+                # Refresh the current view to show updated tag information
+                current_workspace = self.workspace_list.get_selected_workspace()
+                if current_workspace:
+                    if self.search_input.text().strip():
+                        # If search is active, re-run search to maintain filtered view
+                        self._on_search_text_changed()
+                    else:
+                        # Otherwise reload workspace files to refresh tag display
+                        self.file_table_model.load_workspace_files(current_workspace.id)
+
+        except Exception as e:
+            QMessageBox.critical(self, "Error Opening Tag Dialog",
+                               f"Failed to open tag assignment dialog: {str(e)}")
 
     def apply_dark_theme(self):
         """Apply modern dark theme styling similar to VSCode/Cursor."""
