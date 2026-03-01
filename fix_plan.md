@@ -36,12 +36,35 @@
 - Created 18 unit tests for workspace operations, 24 unit tests for workspace path operations, and 22 unit tests for tag operations
 - Total test count: 73 tests (9 database + 18 workspace + 24 workspace path + 22 tag) - all passing
 
-## Phase 3: Core Scanner & Monitoring
-- [ ] Implement initial filesystem scanner (`core/scanner.py`) to populate the `file_entry` table for a given Workspace root path.
-- [ ] Write unit tests for the scanner using a temporary directory structure.
-- [ ] Implement `watchdog` integration (`core/watcher.py`) to detect file additions/deletions and update the database accordingly.
-- [ ] Write tests/mocks to verify `watchdog` correctly updates the `file_entry` table.
-- [ ] Commit Git.
+## Phase 3: Core Scanner & Monitoring ✅ COMPLETED
+- [x] Implement initial filesystem scanner (`core/scanner.py`) to populate the `file_entry` table for a given Workspace root path.
+- [x] Write unit tests for the scanner using a temporary directory structure.
+- [x] Implement `watchdog` integration (`core/watcher.py`) to detect file additions/deletions and update the database accordingly.
+- [x] Write tests/mocks to verify `watchdog` correctly updates the `file_entry` table.
+
+### Phase 3 Learnings:
+- Implemented comprehensive FileEntry model with full CRUD operations for managing file entries in database
+- Created FilesystemScanner class that handles both individual files and recursive directory scanning
+- File type detection based on extensions with proper fallback handling
+- Scanner integrates seamlessly with existing Workspace and WorkspacePath models using foreign key relationships
+- Added rescan functionality to detect filesystem changes (additions/deletions) and sync with database
+- Implemented convenience functions scan_workspace() and rescan_workspace() for easy API usage
+- **Implemented real-time filesystem monitoring using watchdog library (`core/watcher.py`)**:
+  - Created WorkspaceFileHandler for handling filesystem events (create, delete, move/rename)
+  - Implemented FilesystemWatcher class with thread-safe operations and proper observer lifecycle management
+  - Supports watching multiple workspaces simultaneously with independent event handling
+  - Handles file creation, deletion, and move/rename events with automatic database synchronization
+  - Properly calculates relative paths for files within workspace boundaries
+  - Ignores directory events (only tracks files as per specification)
+  - Includes global watcher instance and convenience functions for easy integration
+  - Context manager support for automatic cleanup
+  - Fixed observer thread reuse issue by creating new Observer instances after shutdown
+- Created comprehensive test suite covering both scanner (18 tests) and watcher (22 tests) functionality
+- Tests use temporary database files to avoid interference, ensuring isolated and reliable testing
+- Scanner and watcher properly handle missing paths, permission errors, and duplicate files gracefully
+- Database foreign key CASCADE DELETE ensures file entries are automatically cleaned up when workspaces are deleted
+- File entries include relative_path (from workspace root), absolute_path (unique), and detected file_type
+- Total test count: 113 tests (9 database + 18 workspace + 24 workspace path + 22 tag + 18 scanner + 22 watcher) - all passing
 
 ## Phase 4: CLI Implementation
 - [ ] Create basic CLI structure using `click` or `argparse` in `cli/main.py`.
