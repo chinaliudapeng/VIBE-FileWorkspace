@@ -16,17 +16,20 @@
 ## Phase 2: Core Data Layer (CRUD)
 - [x] Implement CRUD operations for Workspaces in `core/models.py` (Create Workspace, List Workspaces, Delete Workspace).
 - [x] Write unit tests for Workspace CRUD operations.
-- [ ] Implement CRUD operations for Workspace Paths (Add Path to Workspace, Remove Path).
-- [ ] Write unit tests for Workspace Paths CRUD operations.
+- [x] Implement CRUD operations for Workspace Paths (Add Path to Workspace, Remove Path).
+- [x] Write unit tests for Workspace Paths CRUD operations.
 - [ ] Implement CRUD operations for Tags (Add Tag to File, Remove Tag from File, Get all Tags for File, Get all unique Tags in DB).
 - [ ] Write unit tests for Tag CRUD operations.
 
 ### Phase 2 Learnings:
 - Workspace model implemented with comprehensive CRUD operations
 - Added business logic validation: workspace names cannot be empty or whitespace-only
-- All foreign key CASCADE DELETE constraints work properly for workspace deletion
-- Created 18 unit tests covering all workspace operations, edge cases, and error conditions
-- Total test count: 27 tests (9 database + 18 workspace) - all passing
+- WorkspacePath model implemented with full CRUD operations supporting both files and folders
+- Fixed critical issue: SQLite foreign key constraints were not enabled by default - added `PRAGMA foreign_keys = ON` to enable CASCADE DELETE functionality
+- All foreign key CASCADE DELETE constraints work properly for workspace deletion (automatically removes workspace paths, file entries, and tags)
+- WorkspacePath operations include validation for path types, workspace existence, and duplicate prevention
+- Created 18 unit tests for workspace operations and 24 unit tests for workspace path operations
+- Total test count: 51 tests (9 database + 18 workspace + 24 workspace path) - all passing
 
 ## Phase 3: Core Scanner & Monitoring
 - [ ] Implement initial filesystem scanner (`core/scanner.py`) to populate the `file_entry` table for a given Workspace root path.
