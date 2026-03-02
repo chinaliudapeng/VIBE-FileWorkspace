@@ -107,14 +107,15 @@ class WorkspaceDialog(QDialog):
         # Paths table
         self.paths_table = QTableWidget()
         self.paths_table.setObjectName("pathsTable")
-        self.paths_table.setColumnCount(3)
-        self.paths_table.setHorizontalHeaderLabels(["Type", "Path", ""])
+        self.paths_table.setColumnCount(4)
+        self.paths_table.setHorizontalHeaderLabels(["Type", "Path", "Hiding Rules", ""])
 
         # Configure table columns
         header = self.paths_table.horizontalHeader()
         header.setSectionResizeMode(0, QHeaderView.ResizeToContents)  # Type column
         header.setSectionResizeMode(1, QHeaderView.Stretch)          # Path column
-        header.setSectionResizeMode(2, QHeaderView.ResizeToContents)  # Remove button column
+        header.setSectionResizeMode(2, QHeaderView.ResizeToContents)  # Hiding rules column
+        header.setSectionResizeMode(3, QHeaderView.ResizeToContents)  # Remove button column
 
         self.paths_table.verticalHeader().setVisible(False)
         self.paths_table.setSelectionBehavior(QTableWidget.SelectRows)
@@ -218,13 +219,17 @@ class WorkspaceDialog(QDialog):
             path_item.setToolTip(workspace_path.root_path)  # Show full path on hover
             self.paths_table.setItem(row, 1, path_item)
 
+            # Hiding rules column
+            hiding_rules_widget = HidingRulesPillWidget(workspace_path, self, self)
+            self.paths_table.setCellWidget(row, 2, hiding_rules_widget)
+
             # Remove button column
             remove_btn = QPushButton("Remove")
             remove_btn.setObjectName("dangerButton")
             remove_btn.setMinimumWidth(90)  # Ensure button is wide enough for text
             remove_btn.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)  # Prevent shrinking
             remove_btn.clicked.connect(lambda checked, r=row: self.remove_path(r))
-            self.paths_table.setCellWidget(row, 2, remove_btn)
+            self.paths_table.setCellWidget(row, 3, remove_btn)
 
     def remove_path(self, row: int):
         """Remove a path from the workspace."""
@@ -292,10 +297,13 @@ class WorkspaceDialog(QDialog):
                     if not found:
                         WorkspacePath.remove_path(workspace_id, existing_path.root_path)
 
-            # Add new paths
+            # Add new paths and update existing ones
             for workspace_path in self.workspace_paths:
                 if workspace_path.id is None:  # New path
-                    WorkspacePath.add_path(workspace_id, workspace_path.root_path, workspace_path.path_type)
+                    WorkspacePath.add_path(workspace_id, workspace_path.root_path,
+                                         workspace_path.path_type, workspace_path.hiding_rules)
+                else:  # Existing path - update hiding rules if changed
+                    WorkspacePath.update_hiding_rules(workspace_path.id, workspace_path.hiding_rules)
 
             self.accept()  # Close dialog with success
 
@@ -544,6 +552,139 @@ class TagPillWidget(QWidget):
         b = int(color_hex[4:6], 16)
         brightness = (r * 299 + g * 587 + b * 114) / 1000
         return brightness < 128
+
+
+class HidingRulesPillWidget(QWidget):
+    """Widget to display hiding rules as removable pills/badges."""
+
+    def __init__(self, workspace_path, parent=None, workspace_dialog=None):
+        super().__init__(parent)
+        self.workspace_path = workspace_path  # Store reference to WorkspacePath object
+        self.workspace_dialog = workspace_dialog  # Store reference to WorkspaceDialog
+        self.hiding_rules = self.parse_hiding_rules(workspace_path.hiding_rules)
+        self.init_ui()
+
+    def parse_hiding_rules(self, rules_string: str) -> List[str]:
+        """Parse semicolon-separated hiding rules."""
+        if not rules_string or not rules_string.strip():
+            return []
+        return [rule.strip() for rule in rules_string.split(';') if rule.strip()]
+
+    def init_ui(self):
+        """Initialize the hiding rules pills UI."""
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(4, 4, 4, 4)
+        layout.setSpacing(4)
+
+        # Add rule pills
+        for rule in self.hiding_rules:
+            pill = self.create_rule_pill(rule)
+            layout.addWidget(pill)
+
+        # Add "Edit" button
+        edit_btn = QPushButton("Edit...")
+        edit_btn.setObjectName("secondaryButton")
+        edit_btn.clicked.connect(self.edit_hiding_rules)
+        layout.addWidget(edit_btn)
+
+        layout.addStretch()
+
+    def create_rule_pill(self, rule: str) -> QWidget:
+        """Create a pill widget for a hiding rule."""
+        pill = QWidget()
+        pill_layout = QHBoxLayout(pill)
+        pill_layout.setContentsMargins(6, 2, 6, 2)
+        pill_layout.setSpacing(4)
+
+        # Rule text
+        rule_label = QLabel(rule)
+        rule_label.setObjectName("ruleLabel")
+        pill_layout.addWidget(rule_label)
+
+        # Remove button
+        remove_btn = QPushButton("×")
+        remove_btn.setObjectName("ruleRemoveButton")
+        remove_btn.setFixedSize(14, 14)
+        remove_btn.clicked.connect(lambda: self.remove_rule(rule))
+        pill_layout.addWidget(remove_btn)
+
+        pill.setFixedHeight(20)
+        self.apply_rule_pill_style(pill)
+        return pill
+
+    def remove_rule(self, rule: str):
+        """Remove a hiding rule."""
+        if rule in self.hiding_rules:
+            self.hiding_rules.remove(rule)
+            self.update_workspace_path_rules()
+            self.refresh_display()
+
+    def edit_hiding_rules(self):
+        """Open a dialog to edit hiding rules."""
+        from PySide6.QtWidgets import QInputDialog
+
+        # Show input dialog with current rules
+        current_rules = ';'.join(self.hiding_rules)
+        text, ok = QInputDialog.getText(
+            self,
+            "Edit Hiding Rules",
+            "Enter regex patterns separated by semicolons:\n(e.g., .*\\.tmp;.*\\.log;node_modules)",
+            text=current_rules
+        )
+
+        if ok:
+            self.hiding_rules = self.parse_hiding_rules(text)
+            self.update_workspace_path_rules()
+            self.refresh_display()
+
+    def update_workspace_path_rules(self):
+        """Update the workspace path object with current hiding rules."""
+        rules_string = ';'.join(self.hiding_rules)
+        self.workspace_path.hiding_rules = rules_string
+
+    def refresh_display(self):
+        """Refresh the display of hiding rule pills."""
+        # Clear current widgets
+        while self.layout().count():
+            child = self.layout().takeAt(0)
+            widget = child.widget()
+            if widget:
+                widget.setParent(None)
+                widget.deleteLater()
+
+        # Rebuild the display
+        self.init_ui()
+
+    def apply_rule_pill_style(self, pill):
+        """Apply pill/badge styling to a rule widget."""
+        pill.setStyleSheet("""
+            QWidget {
+                background-color: #3498db;
+                border-radius: 10px;
+                margin: 1px;
+                padding: 2px;
+            }
+            QLabel#ruleLabel {
+                color: white;
+                font-size: 11px;
+                font-weight: 500;
+                background: transparent;
+                border: none;
+                padding: 0px;
+            }
+            QPushButton#ruleRemoveButton {
+                background: transparent;
+                border: none;
+                color: white;
+                font-weight: bold;
+                font-size: 12px;
+                border-radius: 7px;
+                padding: 0px;
+            }
+            QPushButton#ruleRemoveButton:hover {
+                background-color: rgba(255, 255, 255, 0.2);
+            }
+        """)
 
 
 class TagDialog(QDialog):

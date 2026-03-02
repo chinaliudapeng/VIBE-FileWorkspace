@@ -2,12 +2,13 @@
 
 from typing import List, Optional, Any
 import hashlib
+import re
 from PySide6.QtCore import QAbstractTableModel, Qt, QModelIndex
 from PySide6.QtGui import QFont, QColor
 
 # Import core data models
 from core.scanner import FileEntry
-from core.models import Tag
+from core.models import Tag, WorkspacePath
 
 
 class FileTableModel(QAbstractTableModel):
@@ -136,9 +137,76 @@ class FileTableModel(QAbstractTableModel):
 
         return None
 
+    def _apply_hiding_rules(self, files: List[FileEntry], workspace_id: int) -> List[FileEntry]:
+        """
+        Apply hiding rules to filter out files that match regex patterns.
+
+        Args:
+            files: List of FileEntry objects to filter
+            workspace_id: The workspace ID to get hiding rules for
+
+        Returns:
+            List[FileEntry]: Filtered list of files
+        """
+        try:
+            # Get workspace paths with their hiding rules
+            workspace_paths = WorkspacePath.get_paths_for_workspace(workspace_id)
+
+            # Collect all hiding rules from all workspace paths
+            all_hiding_rules = []
+            for workspace_path in workspace_paths:
+                if workspace_path.hiding_rules and workspace_path.hiding_rules.strip():
+                    rules = [rule.strip() for rule in workspace_path.hiding_rules.split(';') if rule.strip()]
+                    all_hiding_rules.extend(rules)
+
+            # If no hiding rules, return all files
+            if not all_hiding_rules:
+                return files
+
+            # Compile regex patterns (with error handling)
+            compiled_patterns = []
+            for rule in all_hiding_rules:
+                try:
+                    compiled_patterns.append(re.compile(rule))
+                except re.error as e:
+                    # Skip invalid regex patterns but don't fail completely
+                    print(f"Warning: Invalid regex pattern '{rule}': {e}")
+                    continue
+
+            # If no valid patterns, return all files
+            if not compiled_patterns:
+                return files
+
+            # Filter files based on relative path matching
+            filtered_files = []
+            for file_entry in files:
+                should_hide = False
+
+                # Check if file matches any hiding rule
+                for pattern in compiled_patterns:
+                    try:
+                        if pattern.search(file_entry.relative_path):
+                            should_hide = True
+                            break
+                    except Exception as e:
+                        # Skip pattern if it causes an error
+                        print(f"Warning: Error applying pattern to '{file_entry.relative_path}': {e}")
+                        continue
+
+                # Only add file if it doesn't match any hiding rule
+                if not should_hide:
+                    filtered_files.append(file_entry)
+
+            return filtered_files
+
+        except Exception as e:
+            # If there's an error with hiding rules, don't hide anything
+            print(f"Warning: Error applying hiding rules: {e}")
+            return files
+
     def load_workspace_files(self, workspace_id: int) -> None:
         """
-        Load files for the specified workspace.
+        Load files for the specified workspace with hiding rules applied.
 
         Args:
             workspace_id: The workspace ID to load files for
@@ -146,7 +214,13 @@ class FileTableModel(QAbstractTableModel):
         try:
             self.beginResetModel()
             self._workspace_id = workspace_id
-            self._files = FileEntry.get_files_for_workspace(workspace_id)
+
+            # Get all files for the workspace
+            all_files = FileEntry.get_files_for_workspace(workspace_id)
+
+            # Apply hiding rules to filter files
+            self._files = self._apply_hiding_rules(all_files, workspace_id)
+
             self.endResetModel()
         except Exception as e:
             # Reset to empty state on error

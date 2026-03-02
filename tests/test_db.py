@@ -100,7 +100,8 @@ class TestDatabaseInitialization:
             'id': ('INTEGER', 1, None, 1),
             'workspace_id': ('INTEGER', 1, None, 0),
             'root_path': ('TEXT', 1, None, 0),
-            'type': ('TEXT', 1, None, 0)
+            'type': ('TEXT', 1, None, 0),
+            'hiding_rules': ('TEXT', 0, "''", 0)
         }
 
         assert len(columns) == len(expected_columns)

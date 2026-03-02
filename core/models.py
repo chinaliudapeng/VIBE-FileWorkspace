@@ -284,14 +284,15 @@ class WorkspacePath:
     """Model for workspace path data and operations."""
 
     def __init__(self, id: Optional[int] = None, workspace_id: int = 0,
-                 root_path: str = "", path_type: str = "folder"):
+                 root_path: str = "", path_type: str = "folder", hiding_rules: str = ""):
         self.id = id
         self.workspace_id = workspace_id
         self.root_path = root_path
         self.path_type = path_type  # 'folder' or 'file'
+        self.hiding_rules = hiding_rules  # semicolon-separated regex patterns
 
     @classmethod
-    def add_path(cls, workspace_id: int, root_path: str, path_type: str) -> 'WorkspacePath':
+    def add_path(cls, workspace_id: int, root_path: str, path_type: str, hiding_rules: str = "") -> 'WorkspacePath':
         """
         Add a path to a workspace.
 
@@ -299,6 +300,7 @@ class WorkspacePath:
             workspace_id: The workspace ID
             root_path: The absolute path to the folder or file
             path_type: 'folder' or 'file'
+            hiding_rules: Semicolon-separated regex patterns for hiding files (optional)
 
         Returns:
             WorkspacePath: The created workspace path
@@ -328,18 +330,58 @@ class WorkspacePath:
 
             # Insert the workspace path
             cursor.execute('''
-                INSERT INTO workspace_path (workspace_id, root_path, type)
-                VALUES (?, ?, ?)
-            ''', (workspace_id, root_path, path_type))
+                INSERT INTO workspace_path (workspace_id, root_path, type, hiding_rules)
+                VALUES (?, ?, ?, ?)
+            ''', (workspace_id, root_path, path_type, hiding_rules))
 
             path_id = cursor.lastrowid
             conn.commit()
 
+            logger.info(f"Added workspace path '{root_path}' to workspace {workspace_id}")
             return cls(id=path_id, workspace_id=workspace_id,
-                      root_path=root_path, path_type=path_type)
+                      root_path=root_path, path_type=path_type, hiding_rules=hiding_rules)
 
         except sqlite3.Error as e:
             conn.rollback()
+            raise
+        finally:
+            conn.close()
+
+    @classmethod
+    def update_hiding_rules(cls, path_id: int, hiding_rules: str) -> bool:
+        """
+        Update the hiding rules for a workspace path.
+
+        Args:
+            path_id: The workspace path ID
+            hiding_rules: Semicolon-separated regex patterns for hiding files
+
+        Returns:
+            bool: True if the update was successful, False otherwise
+        """
+        conn = get_connection()
+        try:
+            cursor = conn.cursor()
+
+            cursor.execute('''
+                UPDATE workspace_path
+                SET hiding_rules = ?
+                WHERE id = ?
+            ''', (hiding_rules, path_id))
+
+            success = cursor.rowcount > 0
+            conn.commit()
+
+            if success:
+                logger.info(f"Updated hiding rules for workspace path ID {path_id}")
+            else:
+                logger.warning(f"No workspace path found with ID {path_id}")
+
+            return success
+
+        except sqlite3.Error as e:
+            conn.rollback()
+            logger.error(f"Database error updating hiding rules for path ID {path_id}: {e}")
             raise
         finally:
             conn.close()
@@ -420,7 +462,7 @@ class WorkspacePath:
             cursor = conn.cursor()
 
             cursor.execute('''
-                SELECT id, workspace_id, root_path, type
+                SELECT id, workspace_id, root_path, type, hiding_rules
                 FROM workspace_path
                 WHERE workspace_id = ?
                 ORDER BY type ASC, root_path ASC
@@ -432,7 +474,8 @@ class WorkspacePath:
                     id=row['id'],
                     workspace_id=row['workspace_id'],
                     root_path=row['root_path'],
-                    path_type=row['type']
+                    path_type=row['type'],
+                    hiding_rules=row['hiding_rules'] or ""
                 )
                 paths.append(path)
 
@@ -459,7 +502,7 @@ class WorkspacePath:
             cursor = conn.cursor()
 
             cursor.execute('''
-                SELECT id, workspace_id, root_path, type
+                SELECT id, workspace_id, root_path, type, hiding_rules
                 FROM workspace_path
                 WHERE id = ?
             ''', (path_id,))
@@ -470,7 +513,8 @@ class WorkspacePath:
                     id=row['id'],
                     workspace_id=row['workspace_id'],
                     root_path=row['root_path'],
-                    path_type=row['type']
+                    path_type=row['type'],
+                    hiding_rules=row['hiding_rules'] or ""
                 )
             return None
 
@@ -518,11 +562,12 @@ class WorkspacePath:
             'id': self.id,
             'workspace_id': self.workspace_id,
             'root_path': self.root_path,
-            'type': self.path_type
+            'type': self.path_type,
+            'hiding_rules': self.hiding_rules
         }
 
     def __str__(self) -> str:
-        return f"WorkspacePath(id={self.id}, workspace_id={self.workspace_id}, root_path='{self.root_path}', type='{self.path_type}')"
+        return f"WorkspacePath(id={self.id}, workspace_id={self.workspace_id}, root_path='{self.root_path}', type='{self.path_type}', hiding_rules='{self.hiding_rules}')"
 
     def __repr__(self) -> str:
         return self.__str__()

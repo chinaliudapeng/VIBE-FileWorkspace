@@ -61,10 +61,22 @@ def initialize_database():
                 workspace_id INTEGER NOT NULL,
                 root_path TEXT NOT NULL,
                 type TEXT NOT NULL CHECK(type IN ('folder', 'file')),
+                hiding_rules TEXT DEFAULT '',
                 FOREIGN KEY (workspace_id) REFERENCES workspace (id) ON DELETE CASCADE,
                 UNIQUE(workspace_id, root_path)
             )
         ''')
+
+        # Add hiding_rules column if it doesn't exist (for existing databases)
+        try:
+            cursor.execute('ALTER TABLE workspace_path ADD COLUMN hiding_rules TEXT DEFAULT ""')
+            logger.info("Added hiding_rules column to workspace_path table")
+        except sqlite3.OperationalError as e:
+            if "duplicate column name" not in str(e).lower():
+                logger.error(f"Error adding hiding_rules column: {e}")
+                raise
+            else:
+                logger.debug("hiding_rules column already exists in workspace_path table")
 
         # Create file_entry table
         cursor.execute('''

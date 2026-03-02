@@ -12,6 +12,6 @@ Update the status with `[x]` when completed.
 - [x] Git Commit And Push. ✅ COMPLETED
 
 ## Future update 0002
-- [ ] Workspace编辑面板中目录可以设置隐藏规则,隐藏规则为正则表达式,英文分号分隔,请合理设计区域大小,隐藏规则的显示方式可以像Tag一样显示,点击Tag可以删除该隐藏规则,匹配隐藏规则的路径不会在主面板右侧的路径列表中显示.
-- [ ] 自动测试. 
-- [ ] Git Commit And Push.
+- [x] Workspace编辑面板中目录可以设置隐藏规则,隐藏规则为正则表达式,英文分号分隔,请合理设计区域大小,隐藏规则的显示方式可以像Tag一样显示,点击Tag可以删除该隐藏规则,匹配隐藏规则的路径不会在主面板右侧的路径列表中显示. ✅ COMPLETED
+- [x] 自动测试. ✅ COMPLETED
+- [x] Git Commit And Push. ✅ COMPLETED

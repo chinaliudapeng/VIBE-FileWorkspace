@@ -335,3 +335,83 @@ class TestWorkspacePathModel:
         # Verify paths cannot be retrieved by ID
         assert WorkspacePath.get_by_id(path1.id) is None
         assert WorkspacePath.get_by_id(path2.id) is None
+
+    def test_add_path_with_hiding_rules(self, sample_workspace):
+        """Test adding a workspace path with hiding rules."""
+        hiding_rules = r".*\.tmp;.*\.log;node_modules"
+        workspace_path = WorkspacePath.add_path(
+            sample_workspace.id,
+            "/path/to/folder",
+            "folder",
+            hiding_rules
+        )
+
+        assert workspace_path.id is not None
+        assert workspace_path.workspace_id == sample_workspace.id
+        assert workspace_path.root_path == "/path/to/folder"
+        assert workspace_path.path_type == "folder"
+        assert workspace_path.hiding_rules == hiding_rules
+
+    def test_add_path_without_hiding_rules(self, sample_workspace):
+        """Test adding a workspace path without hiding rules (default empty)."""
+        workspace_path = WorkspacePath.add_path(
+            sample_workspace.id,
+            "/path/to/folder",
+            "folder"
+        )
+
+        assert workspace_path.hiding_rules == ""
+
+    def test_update_hiding_rules(self, sample_workspace):
+        """Test updating hiding rules for an existing workspace path."""
+        # Create path without hiding rules
+        workspace_path = WorkspacePath.add_path(
+            sample_workspace.id,
+            "/path/to/folder",
+            "folder"
+        )
+
+        # Update hiding rules
+        new_rules = r".*\.cache;.*\.bak;dist/"
+        success = WorkspacePath.update_hiding_rules(workspace_path.id, new_rules)
+        assert success
+
+        # Verify update
+        updated_path = WorkspacePath.get_by_id(workspace_path.id)
+        assert updated_path.hiding_rules == new_rules
+
+    def test_update_hiding_rules_nonexistent_path(self, sample_workspace):
+        """Test updating hiding rules for non-existent path returns False."""
+        success = WorkspacePath.update_hiding_rules(99999, r".*\.tmp")
+        assert not success
+
+    def test_get_paths_for_workspace_includes_hiding_rules(self, sample_workspace):
+        """Test that get_paths_for_workspace returns paths with hiding rules."""
+        rules1 = r".*\.tmp;.*\.log"
+        rules2 = r"node_modules;dist/"
+
+        path1 = WorkspacePath.add_path(sample_workspace.id, "/path1", "folder", rules1)
+        path2 = WorkspacePath.add_path(sample_workspace.id, "/path2", "folder", rules2)
+
+        paths = WorkspacePath.get_paths_for_workspace(sample_workspace.id)
+        assert len(paths) == 2
+
+        # Find our paths in the results
+        path_dict = {p.root_path: p for p in paths}
+
+        assert path_dict["/path1"].hiding_rules == rules1
+        assert path_dict["/path2"].hiding_rules == rules2
+
+    def test_workspace_path_to_dict_includes_hiding_rules(self, sample_workspace):
+        """Test that WorkspacePath.to_dict() includes hiding_rules field."""
+        hiding_rules = r".*\.tmp;.*\.log;cache/"
+        workspace_path = WorkspacePath.add_path(
+            sample_workspace.id,
+            "/path/to/folder",
+            "folder",
+            hiding_rules
+        )
+
+        path_dict = workspace_path.to_dict()
+        assert "hiding_rules" in path_dict
+        assert path_dict["hiding_rules"] == hiding_rules

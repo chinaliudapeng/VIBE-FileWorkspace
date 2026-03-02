@@ -270,6 +270,128 @@ class TestFileTableModel(unittest.TestCase):
         self.assertEqual(self.model.rowCount(), 0)
         self.assertEqual(self.model.get_file_count(), 0)
 
+    @patch('core.models.WorkspacePath.get_paths_for_workspace')
+    def test_apply_hiding_rules_filters_files(self, mock_get_paths):
+        """Test that hiding rules correctly filter files."""
+        from core.models import WorkspacePath
+
+        # Mock workspace path with hiding rules
+        workspace_path = WorkspacePath(
+            id=1, workspace_id=self.workspace.id,
+            root_path="/test", path_type="folder",
+            hiding_rules=r".*\.tmp;.*\.log;.*\.bak"
+        )
+        mock_get_paths.return_value = [workspace_path]
+
+        # Create test files
+        test_files = [
+            FileEntry(1, self.workspace.id, "main.py", "/test/main.py", "Python"),
+            FileEntry(2, self.workspace.id, "temp.tmp", "/test/temp.tmp", "Temp"),
+            FileEntry(3, self.workspace.id, "debug.log", "/test/debug.log", "Log"),
+            FileEntry(4, self.workspace.id, "data.csv", "/test/data.csv", "CSV"),
+            FileEntry(5, self.workspace.id, "backup.bak", "/test/backup.bak", "Backup"),
+        ]
+
+        # Apply hiding rules
+        filtered_files = self.model._apply_hiding_rules(test_files, self.workspace.id)
+
+        # Should only have main.py and data.csv (not temp.tmp, debug.log, backup.bak)
+        self.assertEqual(len(filtered_files), 2)
+        visible_files = [f.relative_path for f in filtered_files]
+        self.assertIn("main.py", visible_files)
+        self.assertIn("data.csv", visible_files)
+        self.assertNotIn("temp.tmp", visible_files)
+        self.assertNotIn("debug.log", visible_files)
+        self.assertNotIn("backup.bak", visible_files)
+
+    @patch('core.models.WorkspacePath.get_paths_for_workspace')
+    def test_apply_hiding_rules_no_rules(self, mock_get_paths):
+        """Test that files are not filtered when no hiding rules are present."""
+        from core.models import WorkspacePath
+
+        # Mock workspace path without hiding rules
+        workspace_path = WorkspacePath(
+            id=1, workspace_id=self.workspace.id,
+            root_path="/test", path_type="folder",
+            hiding_rules=""
+        )
+        mock_get_paths.return_value = [workspace_path]
+
+        # Create test files
+        test_files = [
+            FileEntry(1, self.workspace.id, "main.py", "/test/main.py", "Python"),
+            FileEntry(2, self.workspace.id, "temp.tmp", "/test/temp.tmp", "Temp"),
+        ]
+
+        # Apply hiding rules (should not filter anything)
+        filtered_files = self.model._apply_hiding_rules(test_files, self.workspace.id)
+
+        # All files should be visible
+        self.assertEqual(len(filtered_files), 2)
+        visible_files = [f.relative_path for f in filtered_files]
+        self.assertIn("main.py", visible_files)
+        self.assertIn("temp.tmp", visible_files)
+
+    @patch('core.models.WorkspacePath.get_paths_for_workspace')
+    def test_apply_hiding_rules_multiple_paths(self, mock_get_paths):
+        """Test hiding rules from multiple workspace paths are combined."""
+        from core.models import WorkspacePath
+
+        # Mock multiple workspace paths with different hiding rules
+        path1 = WorkspacePath(
+            id=1, workspace_id=self.workspace.id,
+            root_path="/test1", path_type="folder",
+            hiding_rules=r".*\.tmp"
+        )
+        path2 = WorkspacePath(
+            id=2, workspace_id=self.workspace.id,
+            root_path="/test2", path_type="folder",
+            hiding_rules=r".*\.log;.*\.bak"
+        )
+        mock_get_paths.return_value = [path1, path2]
+
+        # Create test files
+        test_files = [
+            FileEntry(1, self.workspace.id, "main.py", "/test/main.py", "Python"),
+            FileEntry(2, self.workspace.id, "temp.tmp", "/test/temp.tmp", "Temp"),
+            FileEntry(3, self.workspace.id, "debug.log", "/test/debug.log", "Log"),
+            FileEntry(4, self.workspace.id, "backup.bak", "/test/backup.bak", "Backup"),
+        ]
+
+        # Apply hiding rules (should combine rules from both paths)
+        filtered_files = self.model._apply_hiding_rules(test_files, self.workspace.id)
+
+        # Only main.py should be visible
+        self.assertEqual(len(filtered_files), 1)
+        self.assertEqual(filtered_files[0].relative_path, "main.py")
+
+    @patch('core.models.WorkspacePath.get_paths_for_workspace')
+    def test_apply_hiding_rules_invalid_regex(self, mock_get_paths):
+        """Test that invalid regex patterns are gracefully handled."""
+        from core.models import WorkspacePath
+
+        # Mock workspace path with invalid regex
+        workspace_path = WorkspacePath(
+            id=1, workspace_id=self.workspace.id,
+            root_path="/test", path_type="folder",
+            hiding_rules=r"[invalid;.*\.log"  # Invalid regex pattern
+        )
+        mock_get_paths.return_value = [workspace_path]
+
+        # Create test files
+        test_files = [
+            FileEntry(1, self.workspace.id, "main.py", "/test/main.py", "Python"),
+            FileEntry(2, self.workspace.id, "debug.log", "/test/debug.log", "Log"),
+        ]
+
+        # Apply hiding rules (should not crash, should return all files)
+        filtered_files = self.model._apply_hiding_rules(test_files, self.workspace.id)
+
+        # Should still have main.py, and possibly debug.log (depending on if the valid pattern worked)
+        self.assertGreaterEqual(len(filtered_files), 1)
+        visible_files = [f.relative_path for f in filtered_files]
+        self.assertIn("main.py", visible_files)
+
 
 if __name__ == '__main__':
     unittest.main()
