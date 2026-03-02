@@ -578,5 +578,193 @@ class TestScannerIntegration(unittest.TestCase):
         self.assertIsNone(retrieved)
 
 
+class TestFileEntryBatchInsertion(unittest.TestCase):
+    """Test cases for batch file insertion functionality."""
+
+    def setUp(self):
+        """Set up test database."""
+        # Use temporary database file for tests
+        self.temp_db = tempfile.NamedTemporaryFile(suffix='.db', delete=False)
+        self.temp_db.close()
+        self.temp_db_path = self.temp_db.name
+
+        # Mock get_db_path to return our test database
+        self.db_path_patcher = patch('core.db.get_db_path')
+        self.mock_get_db_path = self.db_path_patcher.start()
+        self.mock_get_db_path.return_value = self.temp_db_path
+
+        # Initialize test database
+        initialize_database()
+
+        # Create a test workspace
+        self.workspace = Workspace.create("Test Workspace")
+
+    def tearDown(self):
+        """Clean up after tests."""
+        self.db_path_patcher.stop()
+
+        # Clean up database file
+        try:
+            os.unlink(self.temp_db_path)
+        except (OSError, FileNotFoundError):
+            pass
+
+    def test_create_batch_empty_list(self):
+        """Test batch creation with empty list."""
+        result = FileEntry.create_batch([])
+        self.assertEqual(len(result), 0)
+
+    def test_create_batch_single_file(self):
+        """Test batch creation with single file."""
+        file_entries = [{
+            'workspace_id': self.workspace.id,
+            'relative_path': 'test.txt',
+            'absolute_path': '/path/to/test.txt',
+            'file_type': 'txt'
+        }]
+
+        result = FileEntry.create_batch(file_entries)
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0].relative_path, 'test.txt')
+        self.assertEqual(result[0].absolute_path, '/path/to/test.txt')
+        self.assertEqual(result[0].file_type, 'txt')
+        self.assertEqual(result[0].workspace_id, self.workspace.id)
+
+    def test_create_batch_multiple_files(self):
+        """Test batch creation with multiple files."""
+        file_entries = []
+        for i in range(150):  # Test with 150 files to exceed batch threshold
+            file_entries.append({
+                'workspace_id': self.workspace.id,
+                'relative_path': f'test_{i}.txt',
+                'absolute_path': f'/path/to/test_{i}.txt',
+                'file_type': 'txt'
+            })
+
+        result = FileEntry.create_batch(file_entries)
+        self.assertEqual(len(result), 150)
+
+        # Verify all files were inserted
+        all_files = FileEntry.get_files_for_workspace(self.workspace.id)
+        self.assertEqual(len(all_files), 150)
+
+    def test_create_batch_duplicate_handling(self):
+        """Test batch creation handles duplicates correctly."""
+        file_entries = [
+            {
+                'workspace_id': self.workspace.id,
+                'relative_path': 'test.txt',
+                'absolute_path': '/path/to/test.txt',
+                'file_type': 'txt'
+            },
+            {
+                'workspace_id': self.workspace.id,
+                'relative_path': 'test.txt',
+                'absolute_path': '/path/to/test.txt',  # Duplicate
+                'file_type': 'txt'
+            }
+        ]
+
+        result = FileEntry.create_batch(file_entries)
+        self.assertEqual(len(result), 1)  # Only one should be created
+
+    def test_create_batch_nonexistent_workspace(self):
+        """Test batch creation with nonexistent workspace."""
+        file_entries = [{
+            'workspace_id': 99999,  # Non-existent workspace
+            'relative_path': 'test.txt',
+            'absolute_path': '/path/to/test.txt',
+            'file_type': 'txt'
+        }]
+
+        with self.assertRaises(ValueError):
+            FileEntry.create_batch(file_entries)
+
+    def test_scan_workspace_paths_batch_optimization(self):
+        """Test that scan_workspace_paths uses batch insertion for large file sets."""
+        # Create a temporary directory with many test files
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Create 120 test files to exceed batch threshold (100)
+            test_files = []
+            for i in range(120):
+                file_path = Path(temp_dir) / f"test_{i:03d}.txt"
+                file_path.write_text(f"Test content {i}")
+                test_files.append(file_path)
+
+            # Add temp directory to workspace
+            WorkspacePath.add_path(self.workspace.id, temp_dir, 'folder')
+
+            # Create scanner and scan
+            scanner = FilesystemScanner(self.workspace.id)
+
+            # Mock the batch creation to verify it's called
+            with patch.object(FileEntry, 'create_batch', wraps=FileEntry.create_batch) as mock_batch:
+                files_added = scanner.scan_workspace_paths()
+
+                # Verify batch insertion was called
+                mock_batch.assert_called_once()
+
+                # Verify correct number of files added
+                self.assertEqual(files_added, 120)
+
+                # Verify files are in database
+                db_files = FileEntry.get_files_for_workspace(self.workspace.id)
+                self.assertEqual(len(db_files), 120)
+
+    def test_scan_workspace_paths_individual_fallback(self):
+        """Test that scan_workspace_paths falls back to individual insertion when batch fails."""
+        # Create a temporary directory with test files
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Create enough files to trigger batch insertion
+            for i in range(105):
+                file_path = Path(temp_dir) / f"test_{i:03d}.txt"
+                file_path.write_text(f"Test content {i}")
+
+            # Add temp directory to workspace
+            WorkspacePath.add_path(self.workspace.id, temp_dir, 'folder')
+
+            # Create scanner
+            scanner = FilesystemScanner(self.workspace.id)
+
+            # Mock batch creation to simulate failure
+            with patch.object(FileEntry, 'create_batch', side_effect=sqlite3.Error("Simulated batch failure")):
+                with patch.object(scanner, '_insert_files_individually', wraps=scanner._insert_files_individually) as mock_individual:
+                    files_added = scanner.scan_workspace_paths()
+
+                    # Verify individual insertion was called as fallback
+                    mock_individual.assert_called_once()
+
+                    # Files should still be added successfully
+                    self.assertEqual(files_added, 105)
+
+    def test_scan_workspace_paths_small_set_uses_individual(self):
+        """Test that scan_workspace_paths uses individual insertion for small file sets."""
+        # Create a temporary directory with few test files (below batch threshold)
+        with tempfile.TemporaryDirectory() as temp_dir:
+            for i in range(5):  # Only 5 files, below 100 threshold
+                file_path = Path(temp_dir) / f"test_{i}.txt"
+                file_path.write_text(f"Test content {i}")
+
+            # Add temp directory to workspace
+            WorkspacePath.add_path(self.workspace.id, temp_dir, 'folder')
+
+            # Create scanner
+            scanner = FilesystemScanner(self.workspace.id)
+
+            # Mock both insertion methods to verify which is called
+            with patch.object(FileEntry, 'create_batch') as mock_batch:
+                with patch.object(scanner, '_insert_files_individually', wraps=scanner._insert_files_individually) as mock_individual:
+                    files_added = scanner.scan_workspace_paths()
+
+                    # Verify batch insertion was NOT called for small set
+                    mock_batch.assert_not_called()
+
+                    # Verify individual insertion was called
+                    mock_individual.assert_called_once()
+
+                    # Verify correct number of files added
+                    self.assertEqual(files_added, 5)
+
+
 if __name__ == '__main__':
     unittest.main()

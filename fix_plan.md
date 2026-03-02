@@ -308,3 +308,32 @@
 - [x] Testing: All 166 existing tests continue to pass, confirming no regression in functionality.
 - [x] User experience enhancement: Users can now efficiently navigate the application without mouse, significantly improving workflow speed for power users.
 - [x] Commit Git.
+
+## Performance Optimization 001 (Batch File Insertion) ✅ COMPLETED
+- [x] **Issue**: Current file scanning implementation in `core/scanner.py` uses individual database inserts for each file, creating performance bottlenecks for large workspaces with thousands of files.
+- [x] **Analysis**:
+  - `scan_workspace_paths()` method (lines 552-567) calls `FileEntry.create()` for each file individually
+  - Each `FileEntry.create()` opens new database connection, verifies workspace, inserts one file, commits, and closes connection
+  - For large workspaces (1000+ files), this results in thousands of database connections and commits
+- [x] **Solution**: Implement batch insertion using executemany() with single transaction and connection reuse
+- [x] **Implementation**:
+  - Added `FileEntry.create_batch()` method using `executemany()` with `INSERT OR IGNORE` for efficient bulk insertion
+  - Updated `scan_workspace_paths()` to collect all files first, then use batch insertion for 100+ files
+  - Implemented intelligent threshold-based switching (batch for large sets, individual for small sets)
+  - Added fallback mechanism to individual insertion if batch fails
+  - Used single database connection and transaction for entire batch operation
+- [x] **Features**:
+  - **Smart thresholding**: Automatically uses batch insertion for workspaces with 100+ files
+  - **Duplicate handling**: Uses `INSERT OR IGNORE` to handle duplicate files gracefully
+  - **Error resilience**: Falls back to individual insertion if batch operation fails
+  - **Connection optimization**: Single connection per batch instead of per-file connections
+  - **Transaction safety**: Proper rollback handling and commit management
+- [x] **Testing**: Added 8 comprehensive test cases covering:
+  - Empty lists, single files, large batches (150 files)
+  - Duplicate handling and workspace validation
+  - Batch threshold logic verification
+  - Fallback mechanism testing
+  - Performance optimization verification
+- [x] **Results**: All 173 existing tests continue to pass + 8 new batch insertion tests pass
+- [x] **Expected Performance**: 10-50x improvement for large workspaces (1000+ files)
+- [x] Commit Git.

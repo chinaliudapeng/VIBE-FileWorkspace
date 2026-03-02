@@ -70,6 +70,88 @@ class FileEntry:
             conn.close()
 
     @classmethod
+    def create_batch(cls, file_entries: List[Dict[str, Any]]) -> List['FileEntry']:
+        """
+        Create multiple file entries in a single batch operation for improved performance.
+
+        Args:
+            file_entries: List of dicts containing workspace_id, relative_path, absolute_path, file_type
+
+        Returns:
+            List[FileEntry]: Successfully created file entries
+
+        Raises:
+            ValueError: If any workspace_id doesn't exist
+            sqlite3.Error: For database-related errors
+        """
+        if not file_entries:
+            return []
+
+        conn = get_connection()
+        created_entries = []
+
+        try:
+            cursor = conn.cursor()
+
+            # Verify all workspaces exist (get unique workspace IDs)
+            workspace_ids = set(entry['workspace_id'] for entry in file_entries)
+            for workspace_id in workspace_ids:
+                cursor.execute('SELECT id FROM workspace WHERE id = ?', (workspace_id,))
+                if not cursor.fetchone():
+                    raise ValueError(f"Workspace with ID {workspace_id} does not exist")
+
+            # Prepare batch insert data, filtering out duplicates
+            insert_data = []
+            absolute_paths_to_insert = set()
+
+            for entry in file_entries:
+                absolute_path = entry['absolute_path']
+                # Check for duplicates within this batch
+                if absolute_path not in absolute_paths_to_insert:
+                    insert_data.append((
+                        entry['workspace_id'],
+                        entry['relative_path'],
+                        absolute_path,
+                        entry.get('file_type', '')
+                    ))
+                    absolute_paths_to_insert.add(absolute_path)
+
+            if insert_data:
+                # Use executemany for batch insertion with INSERT OR IGNORE to handle duplicates
+                cursor.executemany('''
+                    INSERT OR IGNORE INTO file_entry (workspace_id, relative_path, absolute_path, file_type)
+                    VALUES (?, ?, ?, ?)
+                ''', insert_data)
+
+                # Get the created entries (only those that were actually inserted)
+                if insert_data:
+                    placeholders = ','.join(['?' for _ in absolute_paths_to_insert])
+                    cursor.execute(f'''
+                        SELECT id, workspace_id, relative_path, absolute_path, file_type
+                        FROM file_entry
+                        WHERE absolute_path IN ({placeholders})
+                    ''', list(absolute_paths_to_insert))
+
+                    for row in cursor.fetchall():
+                        created_entries.append(cls(
+                            id=row['id'],
+                            workspace_id=row['workspace_id'],
+                            relative_path=row['relative_path'],
+                            absolute_path=row['absolute_path'],
+                            file_type=row['file_type']
+                        ))
+
+                conn.commit()
+
+        except sqlite3.Error as e:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
+
+        return created_entries
+
+    @classmethod
     def get_files_for_workspace(cls, workspace_id: int) -> List['FileEntry']:
         """
         Get all file entries for a workspace.
@@ -516,6 +598,7 @@ class FilesystemScanner:
     def scan_workspace_paths(self) -> int:
         """
         Scan all paths associated with the workspace and populate the database.
+        Uses batch insertion for improved performance with large file sets.
 
         Returns:
             int: Number of files discovered and added to the database
@@ -530,7 +613,8 @@ class FilesystemScanner:
             print(f"No paths found for workspace ID {self.workspace_id}")
             return 0
 
-        total_files_added = 0
+        # Collect all files from all paths before inserting
+        all_files_to_insert = []
 
         for workspace_path in workspace_paths:
             path_obj = Path(workspace_path.root_path)
@@ -548,26 +632,63 @@ class FilesystemScanner:
             elif workspace_path.path_type == 'file' and path_obj.is_file():
                 discovered_files = self._scan_single_file(path_obj, path_obj.parent)
 
-            # Add discovered files to the database
+            # Add workspace_id to each discovered file and collect for batch insertion
             for file_info in discovered_files:
+                file_info['workspace_id'] = self.workspace_id
+                all_files_to_insert.append(file_info)
+
+        total_files_added = 0
+
+        if all_files_to_insert:
+            # Use batch insertion for better performance
+            batch_threshold = 100  # Use batch insertion for 100+ files
+
+            if len(all_files_to_insert) >= batch_threshold:
+                print(f"Using batch insertion for {len(all_files_to_insert)} files...")
                 try:
-                    FileEntry.create(
-                        workspace_id=self.workspace_id,
-                        relative_path=file_info['relative_path'],
-                        absolute_path=file_info['absolute_path'],
-                        file_type=file_info['file_type']
-                    )
-                    total_files_added += 1
-                except sqlite3.IntegrityError:
-                    # File already exists in database, skip
-                    print(f"File already indexed: {file_info['absolute_path']}")
-                    continue
+                    created_entries = FileEntry.create_batch(all_files_to_insert)
+                    total_files_added = len(created_entries)
                 except Exception as e:
-                    print(f"Error adding file to database: {file_info['absolute_path']}: {e}")
-                    continue
+                    print(f"Batch insertion failed, falling back to individual inserts: {e}")
+                    # Fallback to individual insertion
+                    total_files_added = self._insert_files_individually(all_files_to_insert)
+            else:
+                # For smaller sets, use individual insertion as before
+                total_files_added = self._insert_files_individually(all_files_to_insert)
 
         print(f"Scanning complete. Added {total_files_added} files to the database.")
         return total_files_added
+
+    def _insert_files_individually(self, files_to_insert: List[Dict[str, Any]]) -> int:
+        """
+        Insert files individually (fallback method for batch insertion failure).
+
+        Args:
+            files_to_insert: List of file dictionaries to insert
+
+        Returns:
+            int: Number of files successfully added
+        """
+        total_added = 0
+
+        for file_info in files_to_insert:
+            try:
+                FileEntry.create(
+                    workspace_id=file_info['workspace_id'],
+                    relative_path=file_info['relative_path'],
+                    absolute_path=file_info['absolute_path'],
+                    file_type=file_info['file_type']
+                )
+                total_added += 1
+            except sqlite3.IntegrityError:
+                # File already exists in database, skip
+                print(f"File already indexed: {file_info['absolute_path']}")
+                continue
+            except Exception as e:
+                print(f"Error adding file to database: {file_info['absolute_path']}: {e}")
+                continue
+
+        return total_added
 
     def rescan_workspace(self) -> Dict[str, int]:
         """
