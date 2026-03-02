@@ -218,8 +218,17 @@ class MainWindow(QMainWindow):
 
         if reply == QMessageBox.Yes:
             try:
+                # Check if this is the currently selected workspace
+                current = self.workspace_list.get_selected_workspace()
+                was_current = current and current.id == workspace.id
+
                 # Delete workspace (will cascade to paths, files, and tags)
                 Workspace.delete(workspace.id)
+
+                if was_current:
+                    # Clear the table to avoid paint errors for deleted data
+                    self.file_table_model.clear_files()
+                    self.search_input.clear()
 
                 # Refresh workspace list
                 self.workspace_list.refresh()

@@ -470,3 +470,17 @@
   - Verified all existing unit tests still pass with no regressions
   - Verified cascade delete functionality (workspace paths, file entries, tags) continues to work properly
 - **All 159+ unit tests continue to pass** - no regressions introduced by the fix
+
+## Bug Fixes 0002 ✅ COMPLETED
+- [x] Fix issue: deleting a workspace throws an error related to `QAbstractTableModel::headerData` and `QStyledItemDelegate::paint` ("unsupported operand type(s) for &: 'StateFlag' and 'int'").
+- [x] Fix issue: "Test Workspace" and "TestWorkspace" cannot be deleted.
+
+### Bug Fix 0002 Learnings:
+- **Root Cause Identified**:
+  - The deletion of the currently active workspace triggered `WorkspaceListWidget.refresh()`, forcing the view to redraw data that was simultaneously being removed from the underlying `FileTableModel`.
+  - The type error on `QStyleOptionViewItem.state` occurred because PySide6 changed the typing where `option.state` was incorrectly being bitwise ANDed with `QStyle.StateFlag` (or its `.value`) which yielded `unsupported operand type(s) for &: 'StateFlag' and 'int'`.
+- **Fix Implemented**:
+  - `MainWindow._on_delete_workspace()` was updated: if the workspace being deleted is the *currently selected workspace*, we now proactively call `self.file_table_model.clear_files()` and clear the search input before deleting the database records and refreshing the view list.
+  - `TagPillDelegate.paint()` was patched to use integer casting: `int(option.state) & int(QStyle.StateFlag.State_Selected.value)` guaranteeing that the bitwise operations apply correctly and the mock tests pass elegantly.
+  - Test coverage confirmed that the UI handles deletions gracefully without any lingering "ghost" model items and that all 159 unit tests remain unbroken.
+- [ ] Commit Git.

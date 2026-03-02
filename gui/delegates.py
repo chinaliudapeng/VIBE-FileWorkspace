@@ -63,7 +63,7 @@ class TagPillDelegate(QStyledItemDelegate):
             return
 
         # Clear the cell background
-        if option.state & QStyle.State_Selected.value:
+        if int(option.state) & int(QStyle.StateFlag.State_Selected.value):
             painter.fillRect(option.rect, option.palette.highlight())
         elif index.row() % 2 == 1:
             # Alternate row color
