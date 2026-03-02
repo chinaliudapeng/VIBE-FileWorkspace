@@ -223,3 +223,9 @@
   - GUI executable launches successfully as a windowed application
   - Build uses PyInstaller 6.19.0 with proper dependency inclusion
 - [x] Commit Git.
+
+## Bug Fixes 0013
+- [ ] Fix: Tag编辑面板中,CurrentTags发生变化后,承载Tag的容器会上下动,修复它,应该从左到右,从上到下排列.
+- [ ] 自行测试.
+- [ ] 构建最新的Exe并打开.
+- [ ] Commit Git.

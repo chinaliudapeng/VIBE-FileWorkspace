@@ -724,51 +724,60 @@ class TagDialog(QDialog):
             if child:
                 child.deleteLater()
 
-        # Ensure the main layout is aligned to top-left
+        # Reset layout properties for consistent positioning
         self.tags_layout.setAlignment(Qt.AlignTop | Qt.AlignLeft)
-        self.tags_layout.setSpacing(8)
+        self.tags_layout.setSpacing(6)
+        self.tags_layout.setContentsMargins(8, 8, 8, 8)
 
         # Add tag pills for current tags
         if self.current_tags:
-            # Create a simple flow layout approach with consistent alignment
-            current_row_layout = None
-            pills_per_row = 0
-            max_pills_per_row = 6  # Simple fixed number instead of width estimation
+            # Create a stable flow layout that doesn't jump around
+            tags_list = sorted(self.current_tags)
+            max_pills_per_row = 5  # Reduced for better visual balance
 
-            for i, tag_name in enumerate(sorted(self.current_tags)):
-                # Start a new row when needed
-                if pills_per_row == 0:
-                    current_row_layout = QHBoxLayout()
-                    current_row_layout.setSpacing(8)
-                    current_row_layout.setAlignment(Qt.AlignLeft)  # Always left-align
-                    current_row_layout.setContentsMargins(5, 0, 5, 0)
+            # Calculate number of rows needed for stable layout
+            total_rows = (len(tags_list) + max_pills_per_row - 1) // max_pills_per_row
 
-                tag_pill = TagPillWidget(tag_name, self, tag_dialog=self)
-                current_row_layout.addWidget(tag_pill)
-                pills_per_row += 1
+            for row_index in range(total_rows):
+                # Create horizontal layout for this row
+                row_layout = QHBoxLayout()
+                row_layout.setSpacing(6)
+                row_layout.setContentsMargins(0, 0, 0, 0)
+                row_layout.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
 
-                # Complete the row and add it to main layout
-                if pills_per_row == max_pills_per_row or i == len(self.current_tags) - 1:
-                    # Add stretch to keep pills aligned left within the row
-                    current_row_layout.addStretch()
+                # Add pills to this row
+                start_idx = row_index * max_pills_per_row
+                end_idx = min(start_idx + max_pills_per_row, len(tags_list))
 
-                    # Create container widget with consistent properties
-                    row_widget = QWidget()
-                    row_widget.setLayout(current_row_layout)
-                    row_widget.setFixedHeight(32)  # Fixed height for consistency
+                for tag_index in range(start_idx, end_idx):
+                    tag_name = tags_list[tag_index]
+                    tag_pill = TagPillWidget(tag_name, self, tag_dialog=self)
+                    row_layout.addWidget(tag_pill)
 
-                    self.tags_layout.addWidget(row_widget)
-                    pills_per_row = 0
+                # Always add stretch to maintain left alignment
+                row_layout.addStretch(1)
+
+                # Create row container with fixed dimensions for stability
+                row_container = QWidget()
+                row_container.setLayout(row_layout)
+                row_container.setFixedHeight(32)  # Consistent row height
+                row_container.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+
+                # Add row to main layout
+                self.tags_layout.addWidget(row_container)
         else:
-            # Show "No tags" message with consistent alignment
+            # Show "No tags" message
             no_tags_label = QLabel("No tags assigned")
             no_tags_label.setObjectName("noTagsLabel")
-            no_tags_label.setAlignment(Qt.AlignTop | Qt.AlignLeft)  # Top-left aligned
-            no_tags_label.setContentsMargins(5, 10, 5, 10)
+            no_tags_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+            no_tags_label.setFixedHeight(32)  # Same height as tag rows for consistency
+            no_tags_label.setContentsMargins(8, 0, 8, 0)
             self.tags_layout.addWidget(no_tags_label)
 
-        # Add stretch to push all content to top
-        self.tags_layout.addStretch()
+        # Add consistent bottom spacing without stretch to prevent jumping
+        spacer_widget = QWidget()
+        spacer_widget.setFixedHeight(10)  # Fixed spacing instead of flexible stretch
+        self.tags_layout.addWidget(spacer_widget)
 
     def _remove_tag_pill(self, tag_pill: TagPillWidget):
         """Remove a tag from the current tags set."""
