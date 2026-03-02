@@ -1,8 +1,9 @@
 """GUI models for the Workspace File Indexer application."""
 
 from typing import List, Optional, Any
+import hashlib
 from PySide6.QtCore import QAbstractTableModel, Qt, QModelIndex
-from PySide6.QtGui import QFont
+from PySide6.QtGui import QFont, QColor
 
 # Import core data models
 from core.scanner import FileEntry
@@ -25,6 +26,41 @@ class FileTableModel(QAbstractTableModel):
         self._headers = ["Relative Path", "File Type", "Absolute Path", "Tags"]
         self._sort_column = -1
         self._sort_order = Qt.AscendingOrder
+
+    def _get_file_type_color(self, file_type: str) -> QColor:
+        """
+        Generate a subtle background color based on file type.
+
+        Args:
+            file_type: The file type (extension or 'directory')
+
+        Returns:
+            QColor: A subtle background color for the file type
+        """
+        # Special case for directories - use a consistent blue-gray
+        if file_type == 'directory':
+            return QColor(45, 55, 70)  # Dark blue-gray for directories
+
+        # For empty or unknown file types
+        if not file_type:
+            return QColor(50, 50, 50)  # Neutral gray
+
+        # Generate hash from file type to ensure consistent colors
+        hash_obj = hashlib.md5(file_type.lower().encode())
+        hash_hex = hash_obj.hexdigest()
+
+        # Extract RGB values from hash (using first 6 characters)
+        r = int(hash_hex[0:2], 16)
+        g = int(hash_hex[2:4], 16)
+        b = int(hash_hex[4:6], 16)
+
+        # Darken the colors to work well with dark theme
+        # Scale down to 30-60% of original brightness for subtle effect
+        r = int(r * 0.4) + 25  # Range: 25-127
+        g = int(g * 0.4) + 25  # Range: 25-127
+        b = int(b * 0.4) + 25  # Range: 25-127
+
+        return QColor(r, g, b)
 
     def rowCount(self, parent: QModelIndex = QModelIndex()) -> int:
         """Return the number of rows (files) in the model."""
@@ -73,6 +109,10 @@ class FileTableModel(QAbstractTableModel):
                 font = QFont("Consolas", 10)
                 font.setFamilies(["Consolas", "Monaco", "Courier New", "monospace"])
                 return font
+
+        elif role == Qt.BackgroundRole:
+            # Return background color based on file type
+            return self._get_file_type_color(file_entry.file_type)
 
         elif role == Qt.UserRole:
             # Store the FileEntry object for easy access

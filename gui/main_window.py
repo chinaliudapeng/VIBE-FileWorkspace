@@ -125,6 +125,10 @@ class MainWindow(QMainWindow):
         # Initialize file table model
         self.file_table_model = FileTableModel()
 
+        # Track sort state for each column (for cycling behavior)
+        # Values: None (default), Qt.AscendingOrder, Qt.DescendingOrder
+        self._column_sort_states = {}
+
         # Initialize filesystem watcher for real-time file monitoring
         self.filesystem_watcher = get_global_watcher()
 
@@ -194,6 +198,12 @@ class MainWindow(QMainWindow):
         edit_workspace_action.setShortcut(QKeySequence("Ctrl+E"))
         edit_workspace_action.triggered.connect(self._on_edit_workspace_shortcut)
         self.addAction(edit_workspace_action)
+
+        # F5 - Reset all sorting to default
+        reset_sort_action = QAction("Reset Sort", self)
+        reset_sort_action.setShortcut(QKeySequence(Qt.Key.Key_F5))
+        reset_sort_action.triggered.connect(self._on_reset_sort)
+        self.addAction(reset_sort_action)
 
     def create_left_area(self):
         """Create the left area containing the workspace list."""
@@ -461,7 +471,7 @@ class MainWindow(QMainWindow):
         # Configure table appearance and behavior
         table.setAlternatingRowColors(True)
         table.setSelectionBehavior(QTableView.SelectRows)
-        table.setSortingEnabled(True)
+        table.setSortingEnabled(False)  # Disable default sorting, we'll handle it manually
         table.setShowGrid(False)
 
         # Set custom delegate for tags column to render as pills/badges
@@ -480,6 +490,9 @@ class MainWindow(QMainWindow):
 
         # Allow the last section to stretch if window is resized
         header.setStretchLastSection(True)
+
+        # Connect header click for custom cycling sort behavior
+        header.sectionClicked.connect(self._handle_header_click)
 
         # Configure vertical header
         table.verticalHeader().setVisible(False)
@@ -553,6 +566,52 @@ class MainWindow(QMainWindow):
         """Handle clear button click to reset search."""
         self.search_input.clear()
         # The textChanged signal will automatically trigger and reload all files
+
+    def _handle_header_click(self, logical_index):
+        """
+        Handle header click with cycling sort behavior: None -> Ascending -> Descending -> Ascending...
+
+        Args:
+            logical_index: The column index that was clicked
+        """
+        # Get the current sort state for this column
+        current_state = self._column_sort_states.get(logical_index, None)
+
+        # Determine next sort state (cycling behavior)
+        if current_state is None:
+            # First click: ascending
+            next_state = Qt.AscendingOrder
+        elif current_state == Qt.AscendingOrder:
+            # Second click: descending
+            next_state = Qt.DescendingOrder
+        else:  # current_state == Qt.DescendingOrder
+            # Third click: back to ascending
+            next_state = Qt.AscendingOrder
+
+        # Clear sort states for other columns (only one column sorted at a time)
+        self._column_sort_states.clear()
+        self._column_sort_states[logical_index] = next_state
+
+        # Apply the sort to the model
+        self.file_table_model.sort(logical_index, next_state)
+
+        # Update the header to show sort indicator
+        header = self.file_table.horizontalHeader()
+        header.setSortIndicator(logical_index, next_state)
+
+    def _on_reset_sort(self):
+        """Handle F5 shortcut to reset all sorting to default order."""
+        # Clear all sort states
+        self._column_sort_states.clear()
+
+        # Clear sort indicator from header
+        header = self.file_table.horizontalHeader()
+        header.setSortIndicator(-1, Qt.AscendingOrder)  # -1 means no sort indicator
+
+        # Reload the current workspace files to restore default order
+        current_workspace = self.workspace_list.get_selected_workspace()
+        if current_workspace:
+            self.file_table_model.load_workspace_files(current_workspace.id)
 
     def _on_focus_search(self):
         """Handle Ctrl+F shortcut to focus the search input."""
