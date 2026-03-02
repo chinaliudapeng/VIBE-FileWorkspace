@@ -252,3 +252,11 @@
   - Verified fix works correctly: empty tags case shows exactly 1 layout item (no tags label), populated tags case shows exactly 1 layout item (row container)
   - All 164 existing tests continue to pass, ensuring no regression
 - [x] Build verification: Successfully built Windows executables (GUI: 51MB, CLI: 10.8MB) with spacing fixes included
+
+## Bug Fixes 0015 ✅ COMPLETED
+- [x] Fix: Tag编辑面板中,CurrentTags无内容时,面板上残留1个高度很小的空行,删除它.
+- [x] 自行测试.
+- [x] 构建最新的Exe并打开.
+- [x] Commit and Push Git.
+- [x] Resolution: Fixed TagDialog CurrentTags empty line spacing by adjusting layout margins in `refresh_tags_display()` method. When no tags are present, set top and bottom margins to 0 (`setContentsMargins(8, 0, 8, 0)`) to eliminate empty space, while maintaining horizontal margins for proper alignment. When tags exist, use full margins (`setContentsMargins(8, 8, 8, 8)`) for proper spacing. Also removed individual label margins when no tags present. All 164 tests pass, confirming no regression.
+- [x] Build verification: Successfully built Windows GUI executable (51MB) with spacing fix included.

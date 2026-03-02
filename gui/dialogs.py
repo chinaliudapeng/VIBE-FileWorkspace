@@ -729,10 +729,11 @@ class TagDialog(QDialog):
         # Reset layout properties for consistent positioning
         self.tags_layout.setAlignment(Qt.AlignTop | Qt.AlignLeft)
         self.tags_layout.setSpacing(6)
-        self.tags_layout.setContentsMargins(8, 8, 8, 8)
 
         # Add tag pills for current tags
         if self.current_tags:
+            # Set margins only when there are tags to display
+            self.tags_layout.setContentsMargins(8, 8, 8, 8)
             # Create a stable flow layout that doesn't jump around
             tags_list = sorted(self.current_tags)
             max_pills_per_row = 5  # Reduced for better visual balance
@@ -768,12 +769,15 @@ class TagDialog(QDialog):
                 # Add row to main layout
                 self.tags_layout.addWidget(row_container)
         else:
+            # When no tags, set minimal margins to eliminate empty space
+            self.tags_layout.setContentsMargins(8, 0, 8, 0)
+
             # Show "No tags" message
             no_tags_label = QLabel("No tags assigned")
             no_tags_label.setObjectName("noTagsLabel")
             no_tags_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
             no_tags_label.setFixedHeight(32)  # Same height as tag rows for consistency
-            no_tags_label.setContentsMargins(8, 0, 8, 0)
+            no_tags_label.setContentsMargins(0, 0, 0, 0)  # Remove label margins
             self.tags_layout.addWidget(no_tags_label)
 
 
