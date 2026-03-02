@@ -304,10 +304,14 @@ class WorkspaceDialog(QDialog):
                 else:  # Existing path - update hiding rules if changed
                     WorkspacePath.update_hiding_rules(workspace_path.id, workspace_path.hiding_rules)
 
-            self.accept()  # Close dialog with success
+            super().accept()  # Close dialog with success
 
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to save workspace: {str(e)}")
+
+    def accept(self):
+        """Override accept to save workspace before closing."""
+        self.save_workspace()
 
     def apply_theme(self):
         """Apply dark theme styling consistent with main window."""

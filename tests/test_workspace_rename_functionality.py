@@ -106,7 +106,7 @@ class TestWorkspaceRenameFunctionality(unittest.TestCase):
             # Verify error message was shown
             mock_msgbox.critical.assert_called_once()
             error_args = mock_msgbox.critical.call_args
-            self.assertIn("already exists", error_args[0][1].lower())  # Error message should mention "already exists"
+            self.assertIn("already exists", error_args[0][2].lower())  # Error message should mention "already exists"
 
         # Verify original workspace name was not changed
         unchanged_workspace = Workspace.get_by_id(self.original_workspace.id)

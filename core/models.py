@@ -282,6 +282,11 @@ class Workspace:
             conn.commit()
             self.name = new_name
 
+        except sqlite3.IntegrityError as e:
+            conn.rollback()
+            if "unique" in str(e).lower():
+                raise sqlite3.IntegrityError(f"A workspace with the name '{new_name}' already exists")
+            raise
         except sqlite3.Error as e:
             conn.rollback()
             raise

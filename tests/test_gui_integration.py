@@ -7,7 +7,7 @@ import platform
 from pathlib import Path
 from unittest.mock import Mock, patch, MagicMock
 
-from PySide6.QtWidgets import QApplication, QMessageBox
+from PySide6.QtWidgets import QApplication, QMessageBox, QDialog
 from PySide6.QtCore import Qt, QPoint
 from PySide6.QtTest import QTest
 
@@ -129,8 +129,8 @@ class TestGUIIntegration(unittest.TestCase):
         self.assertEqual(dialog.workspace_paths[0].root_path, test_path)
         self.assertEqual(dialog.workspace_paths[0].path_type, "folder")
 
-        # Mock the dialog execution to test save functionality
-        with patch.object(dialog, 'accept') as mock_accept:
+        # Mock the parent dialog's accept method to test save functionality
+        with patch.object(QDialog, 'accept') as mock_accept:
             dialog.save_workspace()
 
             # Verify accept was called (indicating successful save)

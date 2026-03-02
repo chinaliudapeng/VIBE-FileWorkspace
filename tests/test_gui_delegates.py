@@ -224,6 +224,11 @@ class TestTagPillDelegate(unittest.TestCase):
         mock_index.data.return_value = self.file_entry_no_tags  # File with no tags
         mock_index.row.return_value = 0
 
+        # Mock the model to return empty tags list for file with no tags
+        mock_model = Mock()
+        mock_model.get_cached_tags.return_value = []  # No tags
+        mock_index.model.return_value = mock_model
+
         # Mock fillRect
         mock_painter.fillRect = Mock()
 
