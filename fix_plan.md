@@ -240,9 +240,15 @@
 - [x] Build verification: Windows executable (51MB) built and launched successfully with fix included
 - [x] Commit: Changes committed with comprehensive description of layout stability improvements
 
-## Bug Fixes 0014
-- [] Fix: Tag编辑面板中,CurrentTags有内容时,最下方有一条高度很小的空行,删除它.
-- [] Fix: Tag编辑面板中,CurrentTags无内容时,面板上残留两个高度很小的空行,删除它们.
-- [] 自行测试.
-- [] 构建最新的Exe并打开.
-- [] Commit and Push Git.
+## Bug Fixes 0014 ✅ COMPLETED
+- [x] Fix: Tag编辑面板中,CurrentTags有内容时,最下方有一条高度很小的空行,删除它.
+- [x] Fix: Tag编辑面板中,CurrentTags无内容时,面板上残留两个高度很小的空行,删除它们.
+- [x] 自行测试.
+- [x] 构建最新的Exe并打开.
+- [x] Commit and Push Git.
+- [x] Resolution: Fixed TagDialog CurrentTags spacing issues by:
+  - Removed unnecessary spacer widget that caused empty lines at bottom (removed lines 778-780 in refresh_tags_display method)
+  - Improved widget clearing mechanism from asynchronous deleteLater() to immediate takeAt() + setParent(None) to prevent duplicate widget creation
+  - Verified fix works correctly: empty tags case shows exactly 1 layout item (no tags label), populated tags case shows exactly 1 layout item (row container)
+  - All 164 existing tests continue to pass, ensuring no regression
+- [x] Build verification: Successfully built Windows executables (GUI: 51MB, CLI: 10.8MB) with spacing fixes included
