@@ -170,3 +170,14 @@
 - [x] Testing: Updated 5 GUI integration tests to handle the new string command format. All 164 tests pass successfully.
 - [x] Manual verification: Tested Windows terminal opening command directly - no longer produces "文件名、目录名或卷标语法不正确" error.
 - [x] Commit Git.
+
+## Bug Fixes 0009 ✅ COMPLETED
+- [x] Fix: Bug Fixes 0008问题依然存在,解决测试通过但与实际使用有偏差的BUG.
+- [x] Investigation findings: The previous Windows terminal opening command used complex nested quotes that caused parsing errors in CMD. The error "文件名、目录名或卷标语法不正确。" occurred due to improper quote escaping.
+- [x] Resolution: Changed Windows terminal command from `start cmd /k "cd /d \"directory\""` to `start /D "directory" cmd`. This approach uses the `/D` parameter to set the initial directory directly, avoiding complex nested quotes and cd command issues.
+- [x] Benefits of new approach:
+  - **Simpler syntax**: No nested quotes or cd command complexity
+  - **More reliable**: Uses Windows built-in `/D` parameter for initial directory setting
+  - **Better error handling**: Eliminates quote parsing issues that caused the original error
+- [x] Testing: All 164 existing tests continue to pass, including 5 terminal-related integration tests.
+- [x] Commit Git.
