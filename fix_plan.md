@@ -260,3 +260,10 @@
 - [x] Commit and Push Git.
 - [x] Resolution: Fixed TagDialog CurrentTags empty line spacing by adjusting layout margins in `refresh_tags_display()` method. When no tags are present, set top and bottom margins to 0 (`setContentsMargins(8, 0, 8, 0)`) to eliminate empty space, while maintaining horizontal margins for proper alignment. When tags exist, use full margins (`setContentsMargins(8, 8, 8, 8)`) for proper spacing. Also removed individual label margins when no tags present. All 164 tests pass, confirming no regression.
 - [x] Build verification: Successfully built Windows GUI executable (51MB) with spacing fix included.
+
+## Bug Fixes 0016 ✅ COMPLETED
+- [x] Fix: Tag编辑面板无内容时,会有一个黑色的控件残留 (When Tag Dialog has no content, a black control remains).
+- [x] Investigation findings: The issue was caused by a conflicting CSS margin `margin: 20px` in `QLabel#noTagsLabel` combined with a strictly set `setFixedHeight(32)`. The combination squished the label's text display area to negative height, preventing the text "No tags assigned" from rendering, while leaving its background area visible as a dark box.
+- [x] Resolution: Removed the CSS `margin: 20px` (changed to 0px) from `QLabel#noTagsLabel` in `gui/dialogs.py` `apply_theme()`, allowing the "No tags assigned" text to correctly render within its 32px fixed height layout area.
+- [x] Testing: Verified 164 existing tests pass cleanly without regression.
+- [x] Commit Git.

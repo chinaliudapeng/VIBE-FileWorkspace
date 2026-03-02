@@ -911,7 +911,7 @@ class TagDialog(QDialog):
             QLabel#noTagsLabel {{
                 color: {text_secondary};
                 font-style: italic;
-                margin: 20px;
+                margin: 0px;
             }}
 
             /* Primary buttons */
