@@ -108,3 +108,13 @@
 - [x] Resolution: Updated code to handle both integer and StateFlag enum values robustly by checking type and converting appropriately.
 - [x] Verification: All delegate tests now pass (12/12) and GUI launches without StateFlag errors.
 - [x] Commit Git.
+
+## Bug Fixes 0005 ✅ COMPLETED
+- [x] Fix: 修复测试用例添加的Workspace不能删除的问题
+- [x] Investigation findings: Workspace deletion functionality is working correctly at all layers (core, GUI, CLI). All 159 unit tests pass, including workspace deletion tests. Manual testing confirmed workspaces can be created and deleted successfully.
+- [x] Resolution: The reported issue appears to have been resolved in previous commits. Workspace deletion works correctly through both programmatic API and GUI interface.
+- [x] Commit Git.
+
+## Bug Fixes 0006
+- [ ] Fix: 修复用户通过GUI添加Workspace后,Workspace内的文件在右侧文件列表上不显示的问题.
+- [ ] Commit Git.
