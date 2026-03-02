@@ -528,6 +528,10 @@ class MainWindow(QMainWindow):
         copy_action = menu.addAction("Copy File Path")
         copy_action.triggered.connect(lambda: self._copy_file_path(file_entry.absolute_path))
 
+        # Open in Terminal action
+        terminal_action = menu.addAction("Open in Terminal")
+        terminal_action.triggered.connect(lambda: self._open_in_terminal(file_entry.absolute_path))
+
         menu.addSeparator()
 
         # Assign/Edit Tags action
@@ -594,6 +598,41 @@ class MainWindow(QMainWindow):
         except Exception as e:
             QMessageBox.warning(self, "Error Copying Path",
                               f"Failed to copy file path: {str(e)}")
+
+    def _open_in_terminal(self, file_path):
+        """Open system terminal at the directory containing the file."""
+        try:
+            # Get the directory containing the file
+            if os.path.isfile(file_path):
+                directory = str(Path(file_path).parent)
+            else:
+                directory = file_path
+
+            if platform.system() == "Windows":
+                # Open Command Prompt in Windows
+                subprocess.run(["cmd", "/c", "start", "cmd", "/k", f"cd /d \"{directory}\""], shell=True)
+            elif platform.system() == "Darwin":  # macOS
+                # Open Terminal app in macOS
+                subprocess.run(["open", "-a", "Terminal", directory])
+            else:
+                # Linux support (though not explicitly required)
+                # Try common terminal applications
+                terminals = ["gnome-terminal", "konsole", "xterm", "x-terminal-emulator"]
+                for terminal in terminals:
+                    try:
+                        subprocess.run([terminal, f"--working-directory={directory}"], check=True)
+                        break
+                    except (FileNotFoundError, subprocess.CalledProcessError):
+                        continue
+                else:
+                    # Fallback message for unsupported systems
+                    QMessageBox.warning(self, "Unsupported System",
+                                      "Terminal opening is not supported on this system.")
+                    return
+
+        except Exception as e:
+            QMessageBox.warning(self, "Error Opening Terminal",
+                              f"Failed to open terminal: {str(e)}")
 
     def _delete_file(self, file_entry):
         """Delete file using send2trash for safe deletion."""

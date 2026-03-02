@@ -138,6 +138,12 @@
 - [x] Testing: Created and ran test to verify remove button sizing. All 159 existing tests continue to pass.
 - [x] Commit Git.
 
-## Feature Requests 004
-- [ ] 右键通用功能加一个以当前路径所在的路径打开终端,macOS和Windows系统都要支持.
-- [ ] Commit Git.
+## Feature Requests 004 ✅ COMPLETED
+- [x] 右键通用功能加一个以当前路径所在的路径打开终端,macOS和Windows系统都要支持. (Add a right-click context menu function to open terminal at the current path, supporting both macOS and Windows systems.)
+- [x] Resolution: Added "Open in Terminal" action to file table context menu in `gui/main_window.py`. Implemented `_open_in_terminal` method supporting:
+  - **Windows**: Uses `cmd /c start cmd /k cd /d "directory"` to open Command Prompt at target directory
+  - **macOS**: Uses `open -a Terminal directory` to open Terminal app at target directory
+  - **Linux**: Added basic support with fallback to common terminal applications (gnome-terminal, konsole, xterm)
+  - **Smart path handling**: Automatically extracts parent directory for files, uses directory directly for folders
+- [x] Testing: Created comprehensive test suite verifying Windows/macOS command generation, file vs directory handling, and context menu integration. All existing 160 tests continue to pass.
+- [x] Commit Git.
