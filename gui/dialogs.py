@@ -221,7 +221,8 @@ class WorkspaceDialog(QDialog):
             # Remove button column
             remove_btn = QPushButton("Remove")
             remove_btn.setObjectName("dangerButton")
-            remove_btn.setMinimumWidth(80)  # Ensure button is wide enough for text
+            remove_btn.setMinimumWidth(90)  # Ensure button is wide enough for text
+            remove_btn.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)  # Prevent shrinking
             remove_btn.clicked.connect(lambda checked, r=row: self.remove_path(r))
             self.paths_table.setCellWidget(row, 2, remove_btn)
 
@@ -430,10 +431,11 @@ class WorkspaceDialog(QDialog):
                 background-color: {danger_color};
                 border: none;
                 border-radius: 4px;
-                padding: 6px 12px;
+                padding: 8px 16px;
                 color: white;
                 font-size: 12px;
-                min-width: 70px;
+                min-width: 90px;
+                font-weight: 500;
             }}
 
             QPushButton#dangerButton:hover {{

@@ -8,7 +8,7 @@ while true; do
   echo "==================================="
   
   # Run Claude Code with the PROMPT.md
-  winpty claude.cmd -p PROMPT.md --dangerously-skip-permissions --verbose
+  winpty claude.cmd -p PROMPT.md --dangerously-skip-permissions
   
   echo "✅ Loop completed. Waiting 3 seconds before next loop..."
   sleep 3
