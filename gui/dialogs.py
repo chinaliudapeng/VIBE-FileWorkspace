@@ -16,6 +16,9 @@ from PySide6.QtGui import QFont, QIcon, QPalette, QPainter, QFontMetrics
 # Import core data models
 from core.models import Workspace, WorkspacePath, Tag
 from core.scanner import FileEntry
+from core.logging_config import get_logger
+
+logger = get_logger('dialogs')
 
 
 class WorkspaceDialog(QDialog):
@@ -570,7 +573,7 @@ class HidingRulesPillWidget(QWidget):
             self.hiding_rules = self.parse_hiding_rules(workspace_path.hiding_rules)
         except ValueError as e:
             # If existing rules are invalid, log warning and use empty rules
-            print(f"Warning: Invalid hiding rules found for workspace path '{workspace_path.root_path}': {e}")
+            logger.warning(f"Invalid hiding rules found for workspace path '{workspace_path.root_path}': {e}")
             self.hiding_rules = []
             # Clear invalid rules from the workspace path
             workspace_path.hiding_rules = ""

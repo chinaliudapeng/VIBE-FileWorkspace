@@ -33,3 +33,9 @@ Update the status with [x] when completed.
 - [x] Update GUI search handler in gui/main_window.py to process all parsed keywords, not just the first one ✅ COMPLETED
 - [x] Run comprehensive tests after fixes to ensure case-insensitive search works correctly ✅ COMPLETED
 - [x] Git commit and push ✅ COMPLETED
+
+## Bug 202603030004 - Inconsistent Logging Standards (HIGH PRIORITY) ✅ COMPLETED
+- [x] Fix remaining print() statement in gui/dialogs.py:573 that violates logging consistency established in Bug 202603030001 ✅ COMPLETED
+- [x] Review and ensure all error messages use appropriate logger levels instead of print() statements ✅ COMPLETED
+- [x] Run comprehensive tests to ensure logging changes don't break functionality ✅ COMPLETED
+- [ ] Git commit and push
