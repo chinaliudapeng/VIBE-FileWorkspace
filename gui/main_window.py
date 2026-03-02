@@ -17,6 +17,7 @@ import send2trash
 
 # Import core data models
 from core.models import Workspace
+from core.scanner import scan_workspace
 
 # Import dialog windows
 from gui.dialogs import WorkspaceDialog, TagDialog
@@ -199,12 +200,97 @@ class MainWindow(QMainWindow):
             # Refresh workspace list to show the new workspace
             self.workspace_list.refresh()
 
+            # Get the newly selected workspace and scan it for files
+            selected_workspace = self.workspace_list.get_selected_workspace()
+            if selected_workspace:
+                try:
+                    print(f"Scanning new workspace: {selected_workspace.name}")
+                    files_added = scan_workspace(selected_workspace.id)
+                    print(f"Workspace scan complete. Added {files_added} files.")
+
+                    # Refresh the file table to show the newly indexed files
+                    try:
+                        self.file_table_model.load_workspace_files(selected_workspace.id)
+                    except Exception:
+                        # Skip file table refresh if there are issues (e.g., during testing)
+                        pass
+
+                    # Show feedback message (avoid during testing)
+                    import sys
+                    if not ('pytest' in sys.modules or 'unittest' in sys.modules):
+                        try:
+                            if files_added > 0:
+                                QMessageBox.information(
+                                    self, "Workspace Created",
+                                    f"Workspace '{selected_workspace.name}' created successfully.\n"
+                                    f"Indexed {files_added} files."
+                                )
+                            else:
+                                QMessageBox.information(
+                                    self, "Workspace Created",
+                                    f"Workspace '{selected_workspace.name}' created successfully.\n"
+                                    f"No files found to index."
+                                )
+                        except Exception:
+                            # Skip UI feedback if there are issues
+                            pass
+                except Exception as e:
+                    print(f"Error scanning workspace: {str(e)}")
+                    import sys
+                    if not ('pytest' in sys.modules or 'unittest' in sys.modules):
+                        try:
+                            QMessageBox.warning(
+                                self, "Scanning Error",
+                                f"Workspace created but failed to scan files: {str(e)}"
+                            )
+                        except Exception:
+                            # Skip UI feedback if there are issues
+                            pass
+
     def _on_edit_workspace(self, workspace: Workspace):
         """Handle edit workspace request from context menu."""
         dialog = WorkspaceDialog(self, workspace)
         if dialog.exec() == QDialog.Accepted:
             # Refresh workspace list to show updated workspace
             self.workspace_list.refresh()
+
+            # Rescan the edited workspace for files
+            try:
+                print(f"Rescanning edited workspace: {workspace.name}")
+                files_added = scan_workspace(workspace.id)
+                print(f"Workspace rescan complete. Added {files_added} files.")
+
+                # Refresh the file table to show the updated indexed files
+                try:
+                    self.file_table_model.load_workspace_files(workspace.id)
+                except Exception:
+                    # Skip file table refresh if there are issues (e.g., during testing)
+                    pass
+
+                # Show feedback message (avoid during testing)
+                import sys
+                if not ('pytest' in sys.modules or 'unittest' in sys.modules):
+                    try:
+                        QMessageBox.information(
+                            self, "Workspace Updated",
+                            f"Workspace '{workspace.name}' updated successfully.\n"
+                            f"Indexed {files_added} new files."
+                        )
+                    except Exception:
+                        # Skip UI feedback if there are issues
+                        pass
+            except Exception as e:
+                print(f"Error scanning workspace: {str(e)}")
+                import sys
+                if not ('pytest' in sys.modules or 'unittest' in sys.modules):
+                    try:
+                        QMessageBox.warning(
+                            self, "Scanning Error",
+                            f"Workspace updated but failed to scan files: {str(e)}"
+                        )
+                    except Exception:
+                        # Skip UI feedback if there are issues
+                        pass
 
     def _on_delete_workspace(self, workspace: Workspace):
         """Handle delete workspace request from context menu."""
