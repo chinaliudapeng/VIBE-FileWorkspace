@@ -455,10 +455,11 @@ class WorkspaceDialog(QDialog):
 class TagPillWidget(QWidget):
     """Widget to display a tag as a removable pill/badge."""
 
-    def __init__(self, tag_name: str, parent=None):
+    def __init__(self, tag_name: str, parent=None, tag_dialog=None):
         super().__init__(parent)
         self.tag_name = tag_name
         self.removable = True
+        self.tag_dialog = tag_dialog  # Store reference to TagDialog for removal
         self.init_ui()
 
     def init_ui(self):
@@ -485,8 +486,8 @@ class TagPillWidget(QWidget):
 
     def remove_requested(self):
         """Signal that this tag should be removed."""
-        if self.parent() and hasattr(self.parent(), '_remove_tag_pill'):
-            self.parent()._remove_tag_pill(self)
+        if self.tag_dialog and hasattr(self.tag_dialog, '_remove_tag_pill'):
+            self.tag_dialog._remove_tag_pill(self)
 
     def apply_pill_style(self):
         """Apply pill/badge styling to the widget."""
@@ -728,7 +729,7 @@ class TagDialog(QDialog):
             max_width = 400  # Approximate container width
 
             for tag_name in sorted(self.current_tags):
-                tag_pill = TagPillWidget(tag_name, self)
+                tag_pill = TagPillWidget(tag_name, self, tag_dialog=self)
 
                 # Estimate pill width (rough calculation)
                 pill_width = len(tag_name) * 8 + 40  # Rough estimate

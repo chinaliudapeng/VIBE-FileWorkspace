@@ -181,3 +181,25 @@
   - **Better error handling**: Eliminates quote parsing issues that caused the original error
 - [x] Testing: All 164 existing tests continue to pass, including 5 terminal-related integration tests.
 - [x] Commit Git.
+
+## Bug Fixes 0010 ✅ COMPLETED
+- [x] Fix: Tag编辑面板中删除Tag按钮无效.
+- [x] Resolution: Fixed TagPillWidget parent-child relationship issue. When TagPillWidgets are added to complex layout structures, the parent reference can change from TagDialog to intermediate container widgets. Fixed by storing a direct reference to the TagDialog in TagPillWidget constructor and using that reference instead of relying on self.parent() for tag removal.
+- [x] Changes made:
+  - Updated TagPillWidget constructor to accept and store tag_dialog parameter
+  - Modified remove_requested() method to use stored tag_dialog reference instead of self.parent()
+  - Updated TagDialog.refresh_tags_display() to pass self as tag_dialog parameter when creating TagPillWidget
+- [x] Verification: Created test script that successfully verified tag removal functionality. All existing 164 unit tests continue to pass.
+- [x] Commit Git.
+
+## Bug Fixes 0011
+- [ ] Fix: Tag编辑面板中添加Tag时Current Tags显示区域总是乱动,貌似没有基于区域左上角对齐.
+- [ ] Fix: Tag编辑面板中显示的Tag文本统一设置为白色,现有有暗色文本,这部分暗色文本看不清.
+- [ ] 自行测试.
+- [ ] Commit Git.
+
+## Bug Fixes 0012
+- [ ] Fix: 搜索功能输入Tag的名称没有筛选出对应Tag的条目,但是输入文件名可以.
+- [ ] 自行测试.
+- [ ] Commit Git.
+- [ ] 构建最新Windows的Exe并打开.
