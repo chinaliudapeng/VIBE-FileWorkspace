@@ -410,8 +410,8 @@ class TestFileTableContextMenu(unittest.TestCase):
             mock_subprocess.assert_called_once()
             call_args = mock_subprocess.call_args[0][0]
 
-            # The command should contain the parent directory, not the file path
-            command_str = ' '.join(call_args)
+            # The command is now a string (not a list), so use it directly
+            command_str = call_args if isinstance(call_args, str) else ' '.join(call_args)
             self.assertIn(expected_directory, command_str)
             self.assertNotIn(file_path, command_str) # File path itself should not be in the command
 
@@ -434,8 +434,8 @@ class TestFileTableContextMenu(unittest.TestCase):
             mock_subprocess.assert_called_once()
             call_args = mock_subprocess.call_args[0][0]
 
-            # The command should contain the directory path itself
-            command_str = ' '.join(call_args)
+            # The command is now a string (not a list), so use it directly
+            command_str = call_args if isinstance(call_args, str) else ' '.join(call_args)
             self.assertIn(dir_path, command_str)
 
     @patch('gui.main_window.subprocess.run')
@@ -504,7 +504,7 @@ class TestFileTableContextMenu(unittest.TestCase):
             self.main_window._open_in_terminal(str(test_file))
             mock_subprocess.assert_called_once()
             call_args = mock_subprocess.call_args[0][0]
-            command_str = ' '.join(call_args)
+            command_str = call_args if isinstance(call_args, str) else ' '.join(call_args)
             self.assertIn(temp_dir, command_str)  # Parent directory should be used
 
             # Test directory path - should use directory itself
@@ -512,7 +512,7 @@ class TestFileTableContextMenu(unittest.TestCase):
             self.main_window._open_in_terminal(str(test_subdir))
             mock_subprocess.assert_called_once()
             call_args = mock_subprocess.call_args[0][0]
-            command_str = ' '.join(call_args)
+            command_str = call_args if isinstance(call_args, str) else ' '.join(call_args)
             self.assertIn(str(test_subdir), command_str)  # Directory itself should be used
 
 

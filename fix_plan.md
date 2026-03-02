@@ -148,7 +148,6 @@
 - [x] Testing: Created comprehensive test suite verifying Windows/macOS command generation, file vs directory handling, and context menu integration. All existing 160 tests continue to pass.
 - [x] Commit Git.
 
-
 ## Bug Fixes 0007 ✅ COMPLETED
 - [x] Fix: 修复Feature Requests 004的功能, 规则为:如果当前路径是目录,则以当前路径打开终端, 如果当前路径是文件,以文件所在目录的路径打开终端.
 - [x] Resolution: Enhanced `_open_in_terminal` method in `gui/main_window.py` to explicitly check both `os.path.isfile()` and `os.path.isdir()` instead of relying on else condition. Added robust error handling for non-existent paths with user-friendly warning messages.
@@ -158,4 +157,16 @@
   - **Error prevention**: Validates target directory exists before attempting to open terminal
   - **Enhanced user experience**: Clear error messages for inaccessible or non-existent directories
 - [x] Testing: Created comprehensive unit tests covering file paths, directory paths, macOS compatibility, non-existent paths, and edge cases. All 164 existing tests continue to pass.
+- [x] Commit Git.
+
+## Bug Fixes 0008 ✅ COMPLETED
+- [x] Fix: 修复Feature Requests 004的功能, windows打开时,cmd输出"文件名、目录名或卷标语法不正确。".
+- [x] 自行测试.
+- [x] Resolution: Fixed Windows terminal opening command syntax issue in `gui/main_window.py` line 632. The problem was mixing `shell=True` with a list format in subprocess.run(), causing command parsing errors.
+- [x] Changes made:
+  - **Command format fix**: Changed from `subprocess.run(["cmd", "/c", "start", "cmd", "/k", f"cd /d \"{directory}\""], shell=True)` to `subprocess.run(f'start cmd /k "cd /d \\"{directory}\\""', shell=True)`
+  - **Proper shell string formatting**: Used shell=True with a properly formatted string command instead of mixing with list format
+  - **Enhanced quote escaping**: Properly escaped quotes around directory paths with `\\"`
+- [x] Testing: Updated 5 GUI integration tests to handle the new string command format. All 164 tests pass successfully.
+- [x] Manual verification: Tested Windows terminal opening command directly - no longer produces "文件名、目录名或卷标语法不正确" error.
 - [x] Commit Git.

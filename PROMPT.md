@@ -12,3 +12,4 @@
 8. Do not implement placeholder or purely mock implementations unless as a stepping stone. We want the full working implementation.
 9. **Git Commits:** When you finish a small milestone (e.g., completing a checkbox in `fix_plan.md` or getting a set of tests to pass), use the terminal to stage your changes (`git add .`) and create a commit (`git commit -m "..."`). The commit message MUST be detailed, describing exactly what functionality was added or bug was fixed.
 10. When the unit tests pass and code is ready, finish your output for this loop so the human can review.
+11. 在规划计划或执行操作之前，请务必使用 <thinking> 和 </thinking> 标签详细输出你每一步的思考和推理过程。

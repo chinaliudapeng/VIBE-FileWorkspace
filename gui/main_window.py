@@ -629,7 +629,8 @@ class MainWindow(QMainWindow):
 
             if platform.system() == "Windows":
                 # Open Command Prompt in Windows
-                subprocess.run(["cmd", "/c", "start", "cmd", "/k", f"cd /d \"{directory}\""], shell=True)
+                # Use shell=True with a properly formatted string command
+                subprocess.run(f'start cmd /k "cd /d \\"{directory}\\""', shell=True)
             elif platform.system() == "Darwin":  # macOS
                 # Open Terminal app in macOS
                 subprocess.run(["open", "-a", "Terminal", directory])
