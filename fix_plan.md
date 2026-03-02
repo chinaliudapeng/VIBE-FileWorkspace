@@ -224,8 +224,18 @@
   - Build uses PyInstaller 6.19.0 with proper dependency inclusion
 - [x] Commit Git.
 
-## Bug Fixes 0013
-- [ ] Fix: Tag编辑面板中,CurrentTags发生变化后,承载Tag的容器会上下动,修复它,应该从左到右,从上到下排列.
-- [ ] 自行测试.
-- [ ] 构建最新的Exe并打开.
-- [ ] Commit Git.
+## Bug Fixes 0013 ✅ COMPLETED
+- [x] Fix: Tag编辑面板中,CurrentTags发生变化后,承载Tag的容器会上下动,修复它,应该从左到右,从上到下排列.
+- [x] 自行测试.
+- [x] 构建最新的Exe并打开.
+- [x] Commit Git.
+- [x] Resolution: Fixed TagDialog layout stability by implementing a more stable flow layout approach:
+  - Replaced dynamic row height calculation with fixed row heights (32px) for consistency
+  - Simplified layout logic with consistent top-left alignment and fixed positioning
+  - Eliminated flexible stretch that caused container position instability
+  - Used fixed spacing widget instead of addStretch() to prevent jumping behavior
+  - Maintained proper left-to-right, top-to-bottom tag arrangement as specified
+  - Reduced max pills per row from 6 to 5 for better visual balance and stability
+- [x] Testing: Successfully verified with non-interactive test covering varying tag counts (0, 2, 8, 10, 11 tags)
+- [x] Build verification: Windows executable (51MB) built and launched successfully with fix included
+- [x] Commit: Changes committed with comprehensive description of layout stability improvements
