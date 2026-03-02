@@ -476,7 +476,6 @@ class MainWindow(QMainWindow):
         if not keywords:
             return
 
-        # For now, treat all terms as keywords (tags will be enhanced in Phase 8)
         # Use the first keyword as the main search term
         main_keyword = keywords[0]
 
@@ -484,9 +483,29 @@ class MainWindow(QMainWindow):
             current_workspace = self.workspace_list.get_selected_workspace()
             workspace_id = current_workspace.id if current_workspace else None
 
-            # Search files using the FileEntry search method
+            # Search files using both keyword and tag search methods
             from core.scanner import FileEntry
-            filtered_files = FileEntry.search_by_keyword(main_keyword, workspace_id)
+
+            # Search by file path keywords
+            keyword_files = FileEntry.search_by_keyword(main_keyword, workspace_id)
+
+            # Search by tags (treating each keyword as a potential tag name)
+            tag_files = FileEntry.search_by_tags([main_keyword], workspace_id)
+
+            # Combine results and remove duplicates
+            # Use a dict to track unique files by their ID to avoid duplicates
+            unique_files = {}
+
+            # Add keyword search results
+            for file_entry in keyword_files:
+                unique_files[file_entry.id] = file_entry
+
+            # Add tag search results
+            for file_entry in tag_files:
+                unique_files[file_entry.id] = file_entry
+
+            # Convert back to list and maintain alphabetical order
+            filtered_files = sorted(unique_files.values(), key=lambda f: f.relative_path.lower())
 
             # Update the model with filtered results
             self.file_table_model._set_files(filtered_files)

@@ -199,8 +199,19 @@
 - [x] Commit Git.
 - [x] Resolution: Fixed tag display alignment by simplifying layout logic with consistent top-left alignment and fixed row heights. Improved text readability by using uniform white text color for all tag pills. Layout no longer jumps around when adding/removing tags, and all tag text is now consistently readable.
 
-## Bug Fixes 0012
-- [ ] Fix: 搜索功能输入Tag的名称没有筛选出对应Tag的条目,但是输入文件名可以.
-- [ ] 自行测试.
+## Bug Fixes 0012 ✅ COMPLETED
+- [x] Fix: 搜索功能输入Tag的名称没有筛选出对应Tag的条目,但是输入文件名可以.
+- [x] 自行测试.
+- [x] Resolution: Fixed GUI search functionality in `gui/main_window.py` `_on_search_text_changed()` method to search both file paths AND tags. The method now:
+  - Uses `FileEntry.search_by_keyword()` to search file paths (existing functionality)
+  - Uses `FileEntry.search_by_tags()` to search tag names (new functionality)
+  - Combines results from both searches and removes duplicates using file ID tracking
+  - Maintains alphabetical sorting of results
+- [x] Testing: Created comprehensive manual test that verified:
+  - Filename search works correctly (found 1 file with 'python' in filename)
+  - Tag search works correctly (found 2 files with 'python' tag)
+  - Combined search produces correct unique results (2 files total)
+  - Tag-only searches work (found files tagged with 'analysis' even though filename doesn't contain 'analysis')
+- [x] All 164 existing unit tests continue to pass, ensuring no regression
 - [ ] Commit Git.
 - [ ] 构建最新Windows的Exe并打开.
