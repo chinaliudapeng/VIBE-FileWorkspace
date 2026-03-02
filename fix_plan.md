@@ -115,6 +115,13 @@
 - [x] Resolution: The reported issue appears to have been resolved in previous commits. Workspace deletion works correctly through both programmatic API and GUI interface.
 - [x] Commit Git.
 
-## Bug Fixes 0006
-- [ ] Fix: 修复用户通过GUI添加Workspace后,Workspace内的文件在右侧文件列表上不显示的问题.
-- [ ] Commit Git.
+## Bug Fixes 0006 ✅ COMPLETED
+- [x] Fix: 修复用户通过GUI添加Workspace后,Workspace内的文件在右侧文件列表上不显示的问题.
+- [x] Investigation findings: GUI workspace creation and file display functionality is working correctly. Comprehensive testing confirmed:
+  - Workspace creation through GUI dialog works properly
+  - File scanning is triggered automatically after workspace creation (`scan_workspace()` called in `MainWindow._on_new_workspace`)
+  - Files are properly indexed into the database
+  - FileTableModel loads and displays files correctly in the GUI
+  - Real-world test with 5 test files confirmed all files appear in the right-side file list
+- [x] Resolution: The reported issue appears to have been resolved in previous commits. GUI file display works correctly after workspace creation.
+- [x] Commit Git.
