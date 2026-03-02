@@ -30,6 +30,7 @@ class FileTableModel(QAbstractTableModel):
         self._headers = ["Relative Path", "File Type", "Absolute Path", "Tags"]
         self._sort_column = -1
         self._sort_order = Qt.AscendingOrder
+        self._tags_cache: dict[int, List[Tag]] = {}  # Cache tags by file_id
 
     def _get_file_type_color(self, file_type: str) -> QColor:
         """
@@ -210,6 +211,7 @@ class FileTableModel(QAbstractTableModel):
     def load_workspace_files(self, workspace_id: int) -> None:
         """
         Load files for the specified workspace with hiding rules applied.
+        Also preloads all tags to avoid N+1 query problem.
 
         Args:
             workspace_id: The workspace ID to load files for
@@ -224,12 +226,16 @@ class FileTableModel(QAbstractTableModel):
             # Apply hiding rules to filter files
             self._files = self._apply_hiding_rules(all_files, workspace_id)
 
+            # Preload all tags for the filtered files to avoid N+1 query problem
+            self._preload_tags()
+
             self.endResetModel()
         except Exception as e:
             # Reset to empty state on error
             self.beginResetModel()
             self._workspace_id = None
             self._files = []
+            self._tags_cache = {}
             self.endResetModel()
             raise e
 
@@ -238,7 +244,42 @@ class FileTableModel(QAbstractTableModel):
         self.beginResetModel()
         self._workspace_id = None
         self._files = []
+        self._tags_cache = {}
         self.endResetModel()
+
+    def _preload_tags(self) -> None:
+        """
+        Preload all tags for current files to avoid N+1 query problem.
+        This method loads all tags in a single database query and caches them.
+        """
+        if not self._files:
+            self._tags_cache = {}
+            return
+
+        try:
+            # Extract all file IDs
+            file_ids = [file_entry.id for file_entry in self._files]
+
+            # Bulk load tags for all files
+            self._tags_cache = Tag.get_tags_for_files_bulk(file_ids)
+
+            logger.debug(f"Preloaded tags for {len(file_ids)} files, found tags for {len([f_id for f_id, tags in self._tags_cache.items() if tags])} files")
+
+        except Exception as e:
+            logger.warning(f"Failed to preload tags: {e}")
+            self._tags_cache = {}
+
+    def get_cached_tags(self, file_id: int) -> List[Tag]:
+        """
+        Get cached tags for a specific file.
+
+        Args:
+            file_id: The file entry ID
+
+        Returns:
+            List[Tag]: List of tags for the file, empty list if no tags or file not found
+        """
+        return self._tags_cache.get(file_id, [])
 
     def get_file_at_row(self, row: int) -> Optional[FileEntry]:
         """
@@ -270,12 +311,15 @@ class FileTableModel(QAbstractTableModel):
     def _set_files(self, files: List[FileEntry]) -> None:
         """
         Set files directly (used for filtered search results).
+        Also preloads tags for the new file list.
 
         Args:
             files: List of FileEntry objects to display
         """
         self.beginResetModel()
         self._files = files
+        # Preload tags for the new file list
+        self._preload_tags()
         self.endResetModel()
 
     def sort(self, column: int, order: Qt.SortOrder = Qt.AscendingOrder) -> None:
@@ -316,17 +360,17 @@ class FileTableModel(QAbstractTableModel):
                 return (not is_dir, file_entry.absolute_path.lower())
 
         elif column == self.COL_TAGS:
-            # Sort by number of tags, then alphabetically by first tag name
+            # Sort by number of tags, then alphabetically by first tag name (using cached tags)
             def sort_key(file_entry: FileEntry) -> tuple:
                 try:
-                    tags = Tag.get_tags_for_file(file_entry.id)
+                    tags = self.get_cached_tags(file_entry.id)
                     if not tags:
                         return (0, '')  # Files with no tags come first
                     tag_names = [tag.tag_name for tag in tags]
                     tag_names.sort()
                     return (len(tags), tag_names[0].lower())
                 except Exception:
-                    return (0, '')  # Handle any database errors gracefully
+                    return (0, '')  # Handle any errors gracefully
 
         else:
             # Default sort by relative path

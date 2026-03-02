@@ -7,12 +7,40 @@ to maintain a single source of truth.
 """
 
 import sqlite3
+import re
 from datetime import datetime
 from typing import List, Dict, Optional, Any
 from .db import get_connection
 from .logging_config import get_logger
 
 logger = get_logger('models')
+
+
+def validate_regex_patterns(hiding_rules: str) -> None:
+    """
+    Validate semicolon-separated regex patterns.
+
+    Args:
+        hiding_rules: Semicolon-separated regex patterns
+
+    Raises:
+        ValueError: If any regex pattern is invalid
+    """
+    if not hiding_rules or not hiding_rules.strip():
+        return
+
+    rules = [rule.strip() for rule in hiding_rules.split(';') if rule.strip()]
+    invalid_patterns = []
+
+    for rule in rules:
+        try:
+            re.compile(rule)
+        except re.error as e:
+            invalid_patterns.append(f"'{rule}': {str(e)}")
+
+    if invalid_patterns:
+        error_msg = "Invalid regex patterns: " + "; ".join(invalid_patterns)
+        raise ValueError(error_msg)
 
 
 class Workspace:
@@ -319,6 +347,9 @@ class WorkspacePath:
 
         root_path = root_path.strip()
 
+        # Validate hiding rules regex patterns
+        validate_regex_patterns(hiding_rules)
+
         conn = get_connection()
         try:
             cursor = conn.cursor()
@@ -358,7 +389,12 @@ class WorkspacePath:
 
         Returns:
             bool: True if the update was successful, False otherwise
+
+        Raises:
+            ValueError: If any regex pattern is invalid
         """
+        # Validate hiding rules regex patterns
+        validate_regex_patterns(hiding_rules)
         conn = get_connection()
         try:
             cursor = conn.cursor()
@@ -727,6 +763,64 @@ class Tag:
                 tags.append(tag)
 
             return tags
+
+        except sqlite3.Error as e:
+            raise
+        finally:
+            conn.close()
+
+    @classmethod
+    def get_tags_for_files_bulk(cls, file_ids: List[int]) -> dict[int, List['Tag']]:
+        """
+        Get all tags for multiple files in a single query.
+
+        This method solves the N+1 query problem by fetching tags for all files
+        in one database call instead of individual queries per file.
+
+        Args:
+            file_ids: List of file entry IDs
+
+        Returns:
+            Dict mapping file_id to List[Tag]: Dictionary where keys are file IDs
+            and values are lists of tags for each file, ordered by tag_name
+        """
+        if not file_ids:
+            return {}
+
+        conn = get_connection()
+        try:
+            cursor = conn.cursor()
+
+            # Create placeholders for the IN clause
+            placeholders = ','.join(['?' for _ in file_ids])
+
+            cursor.execute(f'''
+                SELECT id, file_id, tag_name
+                FROM tags
+                WHERE file_id IN ({placeholders})
+                ORDER BY file_id ASC, tag_name ASC
+            ''', file_ids)
+
+            # Group tags by file_id
+            tags_by_file = {}
+            for row in cursor.fetchall():
+                file_id = row['file_id']
+                tag = cls(
+                    id=row['id'],
+                    file_id=row['file_id'],
+                    tag_name=row['tag_name']
+                )
+
+                if file_id not in tags_by_file:
+                    tags_by_file[file_id] = []
+                tags_by_file[file_id].append(tag)
+
+            # Ensure all requested file_ids are in the result (even if they have no tags)
+            for file_id in file_ids:
+                if file_id not in tags_by_file:
+                    tags_by_file[file_id] = []
+
+            return tags_by_file
 
         except sqlite3.Error as e:
             raise

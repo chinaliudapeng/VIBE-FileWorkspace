@@ -194,16 +194,17 @@ class TestTagPillDelegate(unittest.TestCase):
         mock_index.column.return_value = 3  # COL_TAGS
         mock_index.data.return_value = self.file_entry_with_tags  # Valid file entry
 
-        # Mock Tag.get_tags_for_file to raise an exception
-        with patch('gui.delegates.Tag.get_tags_for_file') as mock_get_tags:
-            mock_get_tags.side_effect = Exception("Database error")
+        # Mock the model to raise an exception when getting cached tags
+        mock_model = Mock()
+        mock_model.get_cached_tags.side_effect = Exception("Database error")
+        mock_index.model.return_value = mock_model
 
-            # Mock the parent's paint method
-            with patch.object(TagPillDelegate.__bases__[0], 'paint') as mock_parent_paint:
-                self.delegate.paint(mock_painter, mock_option, mock_index)
+        # Mock the parent's paint method
+        with patch.object(TagPillDelegate.__bases__[0], 'paint') as mock_parent_paint:
+            self.delegate.paint(mock_painter, mock_option, mock_index)
 
-                # Should call parent's paint method as fallback
-                mock_parent_paint.assert_called_once_with(mock_painter, mock_option, mock_index)
+            # Should call parent's paint method as fallback
+            mock_parent_paint.assert_called_once_with(mock_painter, mock_option, mock_index)
 
     def test_paint_tags_column_no_tags(self):
         """Test paint handles file with no tags."""

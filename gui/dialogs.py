@@ -1,6 +1,7 @@
 """Dialog windows for the Workspace File Indexer GUI application."""
 
 import os
+import re
 from pathlib import Path
 from typing import Optional, List, Set
 from PySide6.QtWidgets import (
@@ -268,10 +269,8 @@ class WorkspaceDialog(QDialog):
 
         try:
             if self.workspace:
-                # Update existing workspace
-                self.workspace.name = workspace_name
-                # Note: Workspace.update() method would need to be implemented
-                # For now, we'll handle this in Phase 6 completion
+                # Update existing workspace name in database
+                self.workspace.update(workspace_name)
                 workspace_id = self.workspace.id
             else:
                 # Create new workspace
@@ -561,14 +560,50 @@ class HidingRulesPillWidget(QWidget):
         super().__init__(parent)
         self.workspace_path = workspace_path  # Store reference to WorkspacePath object
         self.workspace_dialog = workspace_dialog  # Store reference to WorkspaceDialog
-        self.hiding_rules = self.parse_hiding_rules(workspace_path.hiding_rules)
+
+        # Parse existing hiding rules with error handling
+        try:
+            self.hiding_rules = self.parse_hiding_rules(workspace_path.hiding_rules)
+        except ValueError as e:
+            # If existing rules are invalid, log warning and use empty rules
+            print(f"Warning: Invalid hiding rules found for workspace path '{workspace_path.root_path}': {e}")
+            self.hiding_rules = []
+            # Clear invalid rules from the workspace path
+            workspace_path.hiding_rules = ""
+
         self.init_ui()
 
     def parse_hiding_rules(self, rules_string: str) -> List[str]:
-        """Parse semicolon-separated hiding rules."""
+        """
+        Parse and validate semicolon-separated hiding rules.
+
+        Args:
+            rules_string: Semicolon-separated regex patterns
+
+        Returns:
+            List[str]: List of valid regex patterns
+
+        Raises:
+            ValueError: If any regex pattern is invalid
+        """
         if not rules_string or not rules_string.strip():
             return []
-        return [rule.strip() for rule in rules_string.split(';') if rule.strip()]
+
+        rules = [rule.strip() for rule in rules_string.split(';') if rule.strip()]
+
+        # Validate each regex pattern
+        invalid_patterns = []
+        for rule in rules:
+            try:
+                re.compile(rule)
+            except re.error as e:
+                invalid_patterns.append(f"'{rule}': {str(e)}")
+
+        if invalid_patterns:
+            error_msg = "Invalid regex patterns found:\n" + "\n".join(invalid_patterns)
+            raise ValueError(error_msg)
+
+        return rules
 
     def init_ui(self):
         """Initialize the hiding rules pills UI."""
@@ -633,9 +668,24 @@ class HidingRulesPillWidget(QWidget):
         )
 
         if ok:
-            self.hiding_rules = self.parse_hiding_rules(text)
-            self.update_workspace_path_rules()
-            self.refresh_display()
+            try:
+                self.hiding_rules = self.parse_hiding_rules(text)
+                self.update_workspace_path_rules()
+                self.refresh_display()
+            except ValueError as e:
+                # Show user-friendly error message for invalid regex patterns
+                QMessageBox.critical(
+                    self,
+                    "Invalid Regex Patterns",
+                    f"Please fix the following regex patterns:\n\n{str(e)}\n\n"
+                    f"Common regex examples:\n"
+                    f"• .*\\.tmp$ - files ending with .tmp\n"
+                    f"• node_modules - any path containing 'node_modules'\n"
+                    f"• __pycache__ - any path containing '__pycache__'\n"
+                    f"• .*\\.(log|tmp)$ - files ending with .log or .tmp"
+                )
+                # Re-open the dialog so user can fix the patterns
+                self.edit_rules()
 
     def update_workspace_path_rules(self):
         """Update the workspace path object with current hiding rules."""

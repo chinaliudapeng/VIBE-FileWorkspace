@@ -53,9 +53,14 @@ class TagPillDelegate(QStyledItemDelegate):
             painter.restore()
             return
 
-        # Get tags for this file
+        # Get tags for this file from the model's cache (avoids N+1 query problem)
         try:
-            tags = Tag.get_tags_for_file(file_entry.id)
+            model = index.model()
+            if hasattr(model, 'get_cached_tags'):
+                tags = model.get_cached_tags(file_entry.id)
+            else:
+                # Fallback to direct database query if model doesn't support caching
+                tags = Tag.get_tags_for_file(file_entry.id)
         except Exception:
             # If there's an error getting tags, fall back to default painting
             super().paint(painter, option, index)

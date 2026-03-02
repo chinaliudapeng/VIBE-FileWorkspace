@@ -11,9 +11,10 @@ Update the status with [x] when completed.
 
 ## Bug 202603030001 - Critical Code Quality Issues (HIGH PRIORITY)
 - [x] Replace print statements with proper logger calls throughout codebase (affects production reliability) ✅ COMPLETED
-- [ ] Fix N+1 query problem in TagPillDelegate.paint() causing performance issues
-- [ ] Implement missing Workspace.update() method for renaming workspaces
-- [ ] Add validation for hiding rules regex patterns to prevent silent failures
+- [x] Fix N+1 query problem in TagPillDelegate.paint() causing performance issues ✅ COMPLETED
+- [x] Implement missing Workspace.update() method for renaming workspaces ✅ COMPLETED
+- [x] Add validation for hiding rules regex patterns to prevent silent failures ✅ COMPLETED
 - [ ] Fix thread safety issues in FilesystemWatcher
 - [ ] Run comprehensive tests after fixes
 - [ ] Git commit and push
+- [ ] Wait human stop agent
