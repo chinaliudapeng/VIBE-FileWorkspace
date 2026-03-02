@@ -12,7 +12,7 @@ from PySide6.QtWidgets import (
     QMessageBox, QMenu, QDialog, QTableView, QHeaderView
 )
 from PySide6.QtCore import Qt, QSize, Signal
-from PySide6.QtGui import QFont, QIcon, QClipboard
+from PySide6.QtGui import QFont, QIcon, QClipboard, QAction, QKeySequence
 import send2trash
 
 # Import core data models
@@ -159,6 +159,41 @@ class MainWindow(QMainWindow):
 
         # Set splitter proportions (left: 25%, right: 75%)
         self.main_splitter.setSizes([300, 900])
+
+        # Setup keyboard shortcuts
+        self.setup_keyboard_shortcuts()
+
+    def setup_keyboard_shortcuts(self):
+        """Setup keyboard shortcuts for common actions."""
+        # Ctrl+N - New Workspace
+        new_workspace_action = QAction("New Workspace", self)
+        new_workspace_action.setShortcut(QKeySequence.StandardKey.New)  # Ctrl+N
+        new_workspace_action.triggered.connect(self._on_new_workspace)
+        self.addAction(new_workspace_action)
+
+        # Ctrl+F - Focus Search Input
+        focus_search_action = QAction("Focus Search", self)
+        focus_search_action.setShortcut(QKeySequence.StandardKey.Find)  # Ctrl+F
+        focus_search_action.triggered.connect(self._on_focus_search)
+        self.addAction(focus_search_action)
+
+        # Escape - Clear Search
+        clear_search_action = QAction("Clear Search", self)
+        clear_search_action.setShortcut(QKeySequence(Qt.Key.Key_Escape))
+        clear_search_action.triggered.connect(self._on_search_clear)
+        self.addAction(clear_search_action)
+
+        # Delete Key - Delete selected file (when file table has focus)
+        delete_file_action = QAction("Delete File", self)
+        delete_file_action.setShortcut(QKeySequence.StandardKey.Delete)  # Delete key
+        delete_file_action.triggered.connect(self._on_delete_key_pressed)
+        self.addAction(delete_file_action)
+
+        # Ctrl+E - Edit selected workspace (when workspace list has focus)
+        edit_workspace_action = QAction("Edit Workspace", self)
+        edit_workspace_action.setShortcut(QKeySequence("Ctrl+E"))
+        edit_workspace_action.triggered.connect(self._on_edit_workspace_shortcut)
+        self.addAction(edit_workspace_action)
 
     def create_left_area(self):
         """Create the left area containing the workspace list."""
@@ -518,6 +553,30 @@ class MainWindow(QMainWindow):
         """Handle clear button click to reset search."""
         self.search_input.clear()
         # The textChanged signal will automatically trigger and reload all files
+
+    def _on_focus_search(self):
+        """Handle Ctrl+F shortcut to focus the search input."""
+        self.search_input.setFocus()
+        self.search_input.selectAll()
+
+    def _on_delete_key_pressed(self):
+        """Handle Delete key to delete the selected file."""
+        # Only process if file table has focus
+        if self.file_table.hasFocus():
+            current_index = self.file_table.currentIndex()
+            if current_index.isValid():
+                # Get file entry from the model
+                file_entry = self.file_table_model.get_file_at_row(current_index.row())
+                if file_entry:
+                    self._delete_file(file_entry)
+
+    def _on_edit_workspace_shortcut(self):
+        """Handle Ctrl+E shortcut to edit the selected workspace."""
+        # Only process if workspace list has focus
+        if self.workspace_list.hasFocus():
+            selected_workspace = self.workspace_list.get_selected_workspace()
+            if selected_workspace:
+                self._on_edit_workspace(selected_workspace)
 
     def _show_file_context_menu(self, position):
         """Show context menu for file table items."""

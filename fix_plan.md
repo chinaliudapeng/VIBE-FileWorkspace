@@ -285,3 +285,26 @@
   - Edge cases (empty search, non-matching terms)
 - [x] Verification: All 165 existing tests pass, ensuring no regression in functionality.
 - [x] Commit Git.
+
+## Feature Requests 006 (GUI Keyboard Shortcuts) ✅ COMPLETED
+- [x] Feature: 实现GUI键盘快捷键，提升用户体验和操作效率 (Implement GUI keyboard shortcuts to enhance user experience and operational efficiency).
+- [x] Resolution: Added comprehensive keyboard shortcuts to `gui/main_window.py` using QAction objects with standard shortcuts:
+  - **Ctrl+N**: Create new workspace (New Workspace button)
+  - **Ctrl+F**: Focus search input field and select all text
+  - **Escape**: Clear search input (same as Clear button)
+  - **Delete**: Delete selected file when file table has focus (safe deletion with confirmation)
+  - **Ctrl+E**: Edit selected workspace when workspace list has focus
+- [x] Implementation details:
+  - Added `QAction` and `QKeySequence` imports to support keyboard shortcuts
+  - Created `setup_keyboard_shortcuts()` method in `MainWindow.__init__()`
+  - Used standard Qt shortcuts (`QKeySequence.StandardKey.New`, `Find`, `Delete`)
+  - Implemented focus-aware shortcuts (Delete only works when file table focused, Ctrl+E only when workspace list focused)
+  - Added new methods: `_on_focus_search()`, `_on_delete_key_pressed()`, `_on_edit_workspace_shortcut()`
+- [x] Key features:
+  - **Context-sensitive**: Shortcuts only work in appropriate contexts (file table, workspace list)
+  - **Safe operations**: Delete key shows confirmation dialog before file deletion
+  - **Standard compliance**: Uses Qt's standard keyboard shortcuts for consistency
+  - **User-friendly**: Ctrl+F selects all search text for easy replacement
+- [x] Testing: All 166 existing tests continue to pass, confirming no regression in functionality.
+- [x] User experience enhancement: Users can now efficiently navigate the application without mouse, significantly improving workflow speed for power users.
+- [x] Commit Git.
