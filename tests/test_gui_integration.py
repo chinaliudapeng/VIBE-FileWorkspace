@@ -392,6 +392,129 @@ class TestFileTableContextMenu(unittest.TestCase):
             # Verify menu was shown
             mock_menu.exec.assert_called_once()
 
+    @patch('gui.main_window.subprocess.run')
+    def test_open_in_terminal_file_path(self, mock_subprocess):
+        """Test opening terminal for a file path (should open at parent directory)."""
+        with patch('gui.main_window.platform.system') as mock_platform:
+            # Test Windows behavior with a file
+            mock_platform.return_value = "Windows"
+
+            # Use a real file path that we know exists (this test file)
+            file_path = str(Path(__file__).absolute())
+            expected_directory = str(Path(file_path).parent)
+
+            # Call the method
+            self.main_window._open_in_terminal(file_path)
+
+            # Verify subprocess.run was called
+            mock_subprocess.assert_called_once()
+            call_args = mock_subprocess.call_args[0][0]
+
+            # The command should contain the parent directory, not the file path
+            command_str = ' '.join(call_args)
+            self.assertIn(expected_directory, command_str)
+            self.assertNotIn(file_path, command_str) # File path itself should not be in the command
+
+    @patch('gui.main_window.subprocess.run')
+    def test_open_in_terminal_directory_path(self, mock_subprocess):
+        """Test opening terminal for a directory path (should open at the directory)."""
+        with patch('gui.main_window.platform.system') as mock_platform, \
+             tempfile.TemporaryDirectory() as temp_dir:
+
+            # Test Windows behavior with a directory
+            mock_platform.return_value = "Windows"
+
+            # Use the temporary directory
+            dir_path = temp_dir
+
+            # Call the method
+            self.main_window._open_in_terminal(dir_path)
+
+            # Verify subprocess.run was called
+            mock_subprocess.assert_called_once()
+            call_args = mock_subprocess.call_args[0][0]
+
+            # The command should contain the directory path itself
+            command_str = ' '.join(call_args)
+            self.assertIn(dir_path, command_str)
+
+    @patch('gui.main_window.subprocess.run')
+    def test_open_in_terminal_macos(self, mock_subprocess):
+        """Test opening terminal on macOS for both file and directory."""
+        with patch('gui.main_window.platform.system') as mock_platform, \
+             tempfile.TemporaryDirectory() as temp_dir:
+
+            mock_platform.return_value = "Darwin"
+
+            # Test with a file
+            test_file = Path(temp_dir) / "test.txt"
+            test_file.write_text("test")
+
+            self.main_window._open_in_terminal(str(test_file))
+
+            # Verify subprocess.run was called with correct command for macOS
+            mock_subprocess.assert_called_with(["open", "-a", "Terminal", temp_dir])
+
+            # Test with a directory
+            mock_subprocess.reset_mock()
+            self.main_window._open_in_terminal(temp_dir)
+
+            # Should use the directory directly
+            mock_subprocess.assert_called_with(["open", "-a", "Terminal", temp_dir])
+
+    @patch('gui.main_window.subprocess.run')
+    @patch('PySide6.QtWidgets.QMessageBox.warning')
+    def test_open_in_terminal_nonexistent_path(self, mock_warning, mock_subprocess):
+        """Test opening terminal for non-existent path (should show error message)."""
+        with patch('gui.main_window.platform.system') as mock_platform:
+            mock_platform.return_value = "Windows"
+
+            # Use a path that doesn't exist
+            nonexistent_path = "C:\\nonexistent\\file.txt"
+
+            # The improved implementation should show a warning and not call subprocess
+            self.main_window._open_in_terminal(nonexistent_path)
+
+            # Should show warning message instead of trying to open terminal
+            mock_warning.assert_called_once()
+            args, kwargs = mock_warning.call_args
+            self.assertEqual(args[1], "Directory Not Found")
+
+            # Should not call subprocess since directory doesn't exist
+            mock_subprocess.assert_not_called()
+
+    @patch('gui.main_window.subprocess.run')
+    @patch('PySide6.QtWidgets.QMessageBox.warning')
+    def test_open_in_terminal_robust_directory_check(self, mock_warning, mock_subprocess):
+        """Test that the improved logic correctly handles files vs directories."""
+        with patch('gui.main_window.platform.system') as mock_platform, \
+             tempfile.TemporaryDirectory() as temp_dir:
+
+            mock_platform.return_value = "Windows"
+
+            # Create a test file in temp directory
+            test_file = Path(temp_dir) / "test.txt"
+            test_file.write_text("test")
+
+            # Create a subdirectory
+            test_subdir = Path(temp_dir) / "subdir"
+            test_subdir.mkdir()
+
+            # Test file path - should use parent directory
+            self.main_window._open_in_terminal(str(test_file))
+            mock_subprocess.assert_called_once()
+            call_args = mock_subprocess.call_args[0][0]
+            command_str = ' '.join(call_args)
+            self.assertIn(temp_dir, command_str)  # Parent directory should be used
+
+            # Test directory path - should use directory itself
+            mock_subprocess.reset_mock()
+            self.main_window._open_in_terminal(str(test_subdir))
+            mock_subprocess.assert_called_once()
+            call_args = mock_subprocess.call_args[0][0]
+            command_str = ' '.join(call_args)
+            self.assertIn(str(test_subdir), command_str)  # Directory itself should be used
+
 
 if __name__ == '__main__':
     unittest.main()

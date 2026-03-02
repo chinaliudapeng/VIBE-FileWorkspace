@@ -600,13 +600,32 @@ class MainWindow(QMainWindow):
                               f"Failed to copy file path: {str(e)}")
 
     def _open_in_terminal(self, file_path):
-        """Open system terminal at the directory containing the file."""
+        """Open system terminal at the appropriate directory.
+
+        Rules:
+        - If the path is a file, open terminal at the file's parent directory
+        - If the path is a directory, open terminal at that directory
+        - If the path doesn't exist, try the parent directory as fallback
+        """
         try:
-            # Get the directory containing the file
+            # Determine the appropriate directory based on the path type
             if os.path.isfile(file_path):
+                # It's a file - use parent directory
                 directory = str(Path(file_path).parent)
-            else:
+            elif os.path.isdir(file_path):
+                # It's a directory - use the directory itself
                 directory = file_path
+            else:
+                # Path doesn't exist or is inaccessible - use parent directory as fallback
+                directory = str(Path(file_path).parent)
+                print(f"Warning: Path {file_path} doesn't exist, using parent directory: {directory}")
+
+            # Verify that the target directory exists
+            if not os.path.isdir(directory):
+                QMessageBox.warning(self, "Directory Not Found",
+                                  f"Cannot open terminal: directory does not exist or is inaccessible.\n\n"
+                                  f"Path: {directory}")
+                return
 
             if platform.system() == "Windows":
                 # Open Command Prompt in Windows

@@ -147,3 +147,15 @@
   - **Smart path handling**: Automatically extracts parent directory for files, uses directory directly for folders
 - [x] Testing: Created comprehensive test suite verifying Windows/macOS command generation, file vs directory handling, and context menu integration. All existing 160 tests continue to pass.
 - [x] Commit Git.
+
+
+## Bug Fixes 0007 ✅ COMPLETED
+- [x] Fix: 修复Feature Requests 004的功能, 规则为:如果当前路径是目录,则以当前路径打开终端, 如果当前路径是文件,以文件所在目录的路径打开终端.
+- [x] Resolution: Enhanced `_open_in_terminal` method in `gui/main_window.py` to explicitly check both `os.path.isfile()` and `os.path.isdir()` instead of relying on else condition. Added robust error handling for non-existent paths with user-friendly warning messages.
+- [x] Improvements made:
+  - **Explicit directory checking**: Now uses `os.path.isdir()` to explicitly verify directory paths
+  - **Fallback handling**: Non-existent paths fall back to parent directory with warning
+  - **Error prevention**: Validates target directory exists before attempting to open terminal
+  - **Enhanced user experience**: Clear error messages for inaccessible or non-existent directories
+- [x] Testing: Created comprehensive unit tests covering file paths, directory paths, macOS compatibility, non-existent paths, and edge cases. All 164 existing tests continue to pass.
+- [x] Commit Git.
