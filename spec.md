@@ -37,7 +37,7 @@ To support a workspace containing multiple directories or specific files, the sc
 - **Right Area (Top)**
   - Search input box.
   - Clear button to reset search.
-  - Search logic: case-insensitive, matches file path OR tag name, supports multiple keywords separated by `;` or `；`.
+  - Search logic: case-insensitive, matches file path OR tag name (partial match: if tag name contains the keyword, it's a match), supports multiple keywords separated by `;` or `；`.
 - **Right Area (Bottom)**
   - Implemented using `QTreeView` or `QTableView` with a `QAbstractTableModel` for lazy-loading/performance.
   - Displays: File Icon, Relative/Absolute Path, Tags.
