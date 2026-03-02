@@ -9,6 +9,9 @@ from PySide6.QtGui import QFont, QColor
 # Import core data models
 from core.scanner import FileEntry
 from core.models import Tag, WorkspacePath
+from core.logging_config import get_logger
+
+logger = get_logger('models')
 
 
 class FileTableModel(QAbstractTableModel):
@@ -170,7 +173,7 @@ class FileTableModel(QAbstractTableModel):
                     compiled_patterns.append(re.compile(rule))
                 except re.error as e:
                     # Skip invalid regex patterns but don't fail completely
-                    print(f"Warning: Invalid regex pattern '{rule}': {e}")
+                    logger.warning(f"Invalid regex pattern '{rule}': {e}")
                     continue
 
             # If no valid patterns, return all files
@@ -190,7 +193,7 @@ class FileTableModel(QAbstractTableModel):
                             break
                     except Exception as e:
                         # Skip pattern if it causes an error
-                        print(f"Warning: Error applying pattern to '{file_entry.relative_path}': {e}")
+                        logger.warning(f"Error applying pattern to '{file_entry.relative_path}': {e}")
                         continue
 
                 # Only add file if it doesn't match any hiding rule
@@ -201,7 +204,7 @@ class FileTableModel(QAbstractTableModel):
 
         except Exception as e:
             # If there's an error with hiding rules, don't hide anything
-            print(f"Warning: Error applying hiding rules: {e}")
+            logger.warning(f"Error applying hiding rules: {e}")
             return files
 
     def load_workspace_files(self, workspace_id: int) -> None:

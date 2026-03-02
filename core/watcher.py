@@ -306,7 +306,7 @@ class FilesystemWatcher:
                 self.observer.join(timeout=1.0)  # Give it 1 second to stop gracefully
                 self.observer = Observer()  # Create new observer for future use
                 self.is_running = False
-                print("Filesystem watcher stopped")
+                logger.info("Filesystem watcher stopped")
 
             return True
 
@@ -337,7 +337,7 @@ class FilesystemWatcher:
 
             self.watching_workspaces.clear()
             self.workspace_handlers.clear()
-            print("All filesystem watching stopped")
+            logger.info("All filesystem watching stopped")
 
     def get_watched_workspaces(self) -> Dict[int, Set[str]]:
         """

@@ -109,10 +109,10 @@ def initialize_database():
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_tags_tag_name ON tags(tag_name)')
 
         conn.commit()
-        print(f"Database initialized successfully at: {get_db_path()}")
+        logger.info(f"Database initialized successfully at: {get_db_path()}")
 
     except sqlite3.Error as e:
-        print(f"Error initializing database: {e}")
+        logger.error(f"Error initializing database: {e}")
         conn.rollback()
         raise
     finally:
@@ -139,14 +139,14 @@ def verify_database():
 
         missing_tables = required_tables - existing_tables
         if missing_tables:
-            print(f"Missing tables: {missing_tables}")
+            logger.error(f"Missing tables: {missing_tables}")
             return False
 
-        print("Database verification successful - all required tables exist")
+        logger.info("Database verification successful - all required tables exist")
         return True
 
     except sqlite3.Error as e:
-        print(f"Error verifying database: {e}")
+        logger.error(f"Error verifying database: {e}")
         return False
     finally:
         conn.close()

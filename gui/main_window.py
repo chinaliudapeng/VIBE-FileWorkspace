@@ -19,6 +19,7 @@ import send2trash
 from core.models import Workspace
 from core.scanner import scan_workspace
 from core.watcher import get_global_watcher
+from core.logging_config import get_logger
 
 # Import dialog windows
 from gui.dialogs import WorkspaceDialog, TagDialog
@@ -26,6 +27,8 @@ from gui.dialogs import WorkspaceDialog, TagDialog
 # Import GUI models and delegates
 from gui.models import FileTableModel
 from gui.delegates import TagPillDelegate
+
+logger = get_logger('main_window')
 
 
 class WorkspaceListWidget(QListWidget):
@@ -238,7 +241,7 @@ class MainWindow(QMainWindow):
     def _on_workspace_selected(self, workspace: Workspace):
         """Handle workspace selection change."""
         try:
-            print(f"Selected workspace: {workspace.name} (ID: {workspace.id})")
+            logger.info(f"Selected workspace: {workspace.name} (ID: {workspace.id})")
             # Load files for the selected workspace into the table model
             self.file_table_model.load_workspace_files(workspace.id)
 
@@ -246,9 +249,9 @@ class MainWindow(QMainWindow):
             if not self.filesystem_watcher.is_watching_workspace(workspace.id):
                 success = self.filesystem_watcher.start_watching_workspace(workspace.id)
                 if success:
-                    print(f"Started watching workspace: {workspace.name}")
+                    logger.info(f"Started watching workspace: {workspace.name}")
                 else:
-                    print(f"Failed to start watching workspace: {workspace.name}")
+                    logger.error(f"Failed to start watching workspace: {workspace.name}")
         except Exception as e:
             QMessageBox.warning(self, "Error Loading Files",
                               f"Failed to load files for workspace '{workspace.name}': {str(e)}")
@@ -264,9 +267,9 @@ class MainWindow(QMainWindow):
             selected_workspace = self.workspace_list.get_selected_workspace()
             if selected_workspace:
                 try:
-                    print(f"Scanning new workspace: {selected_workspace.name}")
+                    logger.info(f"Scanning new workspace: {selected_workspace.name}")
                     files_added = scan_workspace(selected_workspace.id)
-                    print(f"Workspace scan complete. Added {files_added} files.")
+                    logger.info(f"Workspace scan complete. Added {files_added} files.")
 
                     # Refresh the file table to show the newly indexed files
                     try:
@@ -279,11 +282,11 @@ class MainWindow(QMainWindow):
                     try:
                         success = self.filesystem_watcher.start_watching_workspace(selected_workspace.id)
                         if success:
-                            print(f"Started watching new workspace: {selected_workspace.name}")
+                            logger.info(f"Started watching new workspace: {selected_workspace.name}")
                         else:
-                            print(f"Failed to start watching new workspace: {selected_workspace.name}")
+                            logger.error(f"Failed to start watching new workspace: {selected_workspace.name}")
                     except Exception as watch_error:
-                        print(f"Error starting watcher for new workspace: {str(watch_error)}")
+                        logger.error(f"Error starting watcher for new workspace: {str(watch_error)}")
 
                     # Show feedback message (avoid during testing)
                     import sys
@@ -305,7 +308,7 @@ class MainWindow(QMainWindow):
                             # Skip UI feedback if there are issues
                             pass
                 except Exception as e:
-                    print(f"Error scanning workspace: {str(e)}")
+                    logger.error(f"Error scanning workspace: {str(e)}")
                     import sys
                     if not ('pytest' in sys.modules or 'unittest' in sys.modules):
                         try:
@@ -326,9 +329,9 @@ class MainWindow(QMainWindow):
 
             # Rescan the edited workspace for files
             try:
-                print(f"Rescanning edited workspace: {workspace.name}")
+                logger.info(f"Rescanning edited workspace: {workspace.name}")
                 files_added = scan_workspace(workspace.id)
-                print(f"Workspace rescan complete. Added {files_added} files.")
+                logger.info(f"Workspace rescan complete. Added {files_added} files.")
 
                 # Refresh the file table to show the updated indexed files
                 try:
@@ -344,11 +347,11 @@ class MainWindow(QMainWindow):
                     # Start watching with updated paths
                     success = self.filesystem_watcher.start_watching_workspace(workspace.id)
                     if success:
-                        print(f"Restarted watching edited workspace: {workspace.name}")
+                        logger.info(f"Restarted watching edited workspace: {workspace.name}")
                     else:
-                        print(f"Failed to restart watching edited workspace: {workspace.name}")
+                        logger.error(f"Failed to restart watching edited workspace: {workspace.name}")
                 except Exception as watch_error:
-                    print(f"Error restarting watcher for edited workspace: {str(watch_error)}")
+                    logger.error(f"Error restarting watcher for edited workspace: {str(watch_error)}")
 
                 # Show feedback message (avoid during testing)
                 import sys
@@ -363,7 +366,7 @@ class MainWindow(QMainWindow):
                         # Skip UI feedback if there are issues
                         pass
             except Exception as e:
-                print(f"Error scanning workspace: {str(e)}")
+                logger.error(f"Error scanning workspace: {str(e)}")
                 import sys
                 if not ('pytest' in sys.modules or 'unittest' in sys.modules):
                     try:
@@ -395,9 +398,9 @@ class MainWindow(QMainWindow):
                 try:
                     if self.filesystem_watcher.is_watching_workspace(workspace.id):
                         self.filesystem_watcher.stop_watching_workspace(workspace.id)
-                        print(f"Stopped watching deleted workspace: {workspace.name}")
+                        logger.info(f"Stopped watching deleted workspace: {workspace.name}")
                 except Exception as watch_error:
-                    print(f"Error stopping watcher for deleted workspace: {str(watch_error)}")
+                    logger.error(f"Error stopping watcher for deleted workspace: {str(watch_error)}")
 
                 # Delete workspace (will cascade to paths, files, and tags)
                 Workspace.delete(workspace.id)
@@ -755,7 +758,7 @@ class MainWindow(QMainWindow):
             else:
                 # Path doesn't exist or is inaccessible - use parent directory as fallback
                 directory = str(Path(file_path).parent)
-                print(f"Warning: Path {file_path} doesn't exist, using parent directory: {directory}")
+                logger.warning(f"Path {file_path} doesn't exist, using parent directory: {directory}")
 
             # Verify that the target directory exists
             if not os.path.isdir(directory):
@@ -1061,17 +1064,17 @@ class MainWindow(QMainWindow):
         """Start watching all existing workspaces on application startup."""
         try:
             watched_count = self.filesystem_watcher.start_watching_all_workspaces()
-            print(f"Started watching {watched_count} workspaces on startup")
+            logger.info(f"Started watching {watched_count} workspaces on startup")
         except Exception as e:
-            print(f"Error starting filesystem watchers on startup: {str(e)}")
+            logger.error(f"Error starting filesystem watchers on startup: {str(e)}")
 
     def closeEvent(self, event):
         """Handle window close event to cleanup filesystem watcher."""
         try:
-            print("Shutting down filesystem watcher...")
+            logger.info("Shutting down filesystem watcher...")
             self.filesystem_watcher.stop_all_watching()
         except Exception as e:
-            print(f"Error during filesystem watcher cleanup: {str(e)}")
+            logger.error(f"Error during filesystem watcher cleanup: {str(e)}")
         finally:
             # Accept the close event
             super().closeEvent(event)
