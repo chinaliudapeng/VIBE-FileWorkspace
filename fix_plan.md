@@ -213,5 +213,13 @@
   - Combined search produces correct unique results (2 files total)
   - Tag-only searches work (found files tagged with 'analysis' even though filename doesn't contain 'analysis')
 - [x] All 164 existing unit tests continue to pass, ensuring no regression
-- [ ] Commit Git.
-- [ ] 构建最新Windows的Exe并打开.
+- [x] Commit Git.
+- [x] 构建最新Windows的Exe并打开. (Build the latest Windows Exe and open it)
+- [x] Resolution: Successfully built both Windows executables using the PowerShell build script:
+  - GUI: WorkspaceIndexer-GUI.exe (49 MB) - Launches successfully as a standalone application
+  - CLI: WorkspaceIndexer-CLI.exe (10.4 MB) - All commands working correctly (--version, --help, etc.)
+- [x] Testing: Both executables tested and verified working:
+  - CLI executable responds to all commands (version, help) correctly
+  - GUI executable launches successfully as a windowed application
+  - Build uses PyInstaller 6.19.0 with proper dependency inclusion
+- [x] Commit Git.
