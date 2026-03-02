@@ -189,6 +189,14 @@ class Workspace:
             if not cursor.fetchone():
                 return False
 
+            # Stop filesystem watcher for this workspace before deletion
+            try:
+                from . import watcher
+                watcher.stop_watching_workspace(workspace_id)
+            except Exception:
+                # Don't fail the delete if watcher cleanup fails
+                pass
+
             # Delete the workspace (cascades to related tables)
             cursor.execute('DELETE FROM workspace WHERE id = ?', (workspace_id,))
             conn.commit()
