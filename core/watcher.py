@@ -37,6 +37,8 @@ class WorkspaceFileHandler(FileSystemEventHandler):
         super().__init__()
         self.workspace_id = workspace_id
         self.watcher = watcher
+        # Database lock for thread-safe database operations
+        self._db_lock = threading.Lock()
 
     def _get_file_type(self, file_path: Path) -> str:
         """
@@ -85,6 +87,7 @@ class WorkspaceFileHandler(FileSystemEventHandler):
         abs_path = Path(absolute_path).resolve()
 
         # Get workspace paths to determine which root this file belongs to
+        # Note: This is called within database lock context from event handlers
         workspace_paths = WorkspacePath.get_paths_for_workspace(self.workspace_id)
 
         for workspace_path in workspace_paths:
@@ -121,20 +124,21 @@ class WorkspaceFileHandler(FileSystemEventHandler):
         # but since we rely on event.is_directory we can just hardcode the type
         file_type = 'directory' if event.is_directory else self._get_file_type(file_path)
 
-        try:
-            FileEntry.create(
-                workspace_id=self.workspace_id,
-                relative_path=relative_path,
-                absolute_path=absolute_path,
-                file_type=file_type
-            )
-            logger.info(f"Added to index: {relative_path}")
-        except sqlite3.IntegrityError:
-            # File already exists in database
-            logger.debug(f"File already indexed, skipping: {relative_path}")
-            pass
-        except Exception as e:
-            logger.error(f"Error adding to index: {absolute_path}: {e}")
+        with self._db_lock:
+            try:
+                FileEntry.create(
+                    workspace_id=self.workspace_id,
+                    relative_path=relative_path,
+                    absolute_path=absolute_path,
+                    file_type=file_type
+                )
+                logger.info(f"Added to index: {relative_path}")
+            except sqlite3.IntegrityError:
+                # File already exists in database
+                logger.debug(f"File already indexed, skipping: {relative_path}")
+                pass
+            except Exception as e:
+                logger.error(f"Error adding to index: {absolute_path}: {e}")
 
     def on_deleted(self, event: FileSystemEvent):
         """Handle file deletion events."""
@@ -142,13 +146,14 @@ class WorkspaceFileHandler(FileSystemEventHandler):
 
         logger.debug(f"File deleted event received: {absolute_path}")
 
-        try:
-            if FileEntry.delete_by_absolute_path(absolute_path):
-                logger.info(f"Removed from index: {absolute_path}")
-            else:
-                logger.debug(f"File not found in index for deletion: {absolute_path}")
-        except Exception as e:
-            logger.error(f"Error removing from index: {absolute_path}: {e}")
+        with self._db_lock:
+            try:
+                if FileEntry.delete_by_absolute_path(absolute_path):
+                    logger.info(f"Removed from index: {absolute_path}")
+                else:
+                    logger.debug(f"File not found in index for deletion: {absolute_path}")
+            except Exception as e:
+                logger.error(f"Error removing from index: {absolute_path}: {e}")
 
     def on_moved(self, event: FileSystemEvent):
         """Handle file move/rename events."""
@@ -158,38 +163,39 @@ class WorkspaceFileHandler(FileSystemEventHandler):
 
         logger.info(f"File moved/renamed: {old_absolute_path} -> {new_absolute_path}")
 
-        # Remove old entry
-        try:
-            FileEntry.delete_by_absolute_path(old_absolute_path)
-            logger.debug(f"Removed old entry: {old_absolute_path}")
-        except Exception as e:
-            logger.error(f"Error removing old entry: {old_absolute_path}: {e}")
-
-        # If it was moved to a hidden destination, stop here
-        if self._is_hidden(new_file_path):
-            logger.debug(f"File moved to hidden location, not adding to index: {new_absolute_path}")
-            return
-
-        # Add new entry if still within workspace
-        new_relative_path = self._calculate_relative_path(new_absolute_path)
-        if new_relative_path is not None:
-            file_type = 'directory' if event.is_directory else self._get_file_type(new_file_path)
-
+        with self._db_lock:
+            # Remove old entry
             try:
-                FileEntry.create(
-                    workspace_id=self.workspace_id,
-                    relative_path=new_relative_path,
-                    absolute_path=new_absolute_path,
-                    file_type=file_type
-                )
-                logger.info(f"Added moved entry to index: {new_relative_path}")
-            except sqlite3.IntegrityError:
-                logger.debug(f"Moved file already exists in index: {new_relative_path}")
-                pass
+                FileEntry.delete_by_absolute_path(old_absolute_path)
+                logger.debug(f"Removed old entry: {old_absolute_path}")
             except Exception as e:
-                logger.error(f"Error adding moved entry to index: {new_absolute_path}: {e}")
-        else:
-            logger.debug(f"File moved outside workspace paths: {new_absolute_path}")
+                logger.error(f"Error removing old entry: {old_absolute_path}: {e}")
+
+            # If it was moved to a hidden destination, stop here
+            if self._is_hidden(new_file_path):
+                logger.debug(f"File moved to hidden location, not adding to index: {new_absolute_path}")
+                return
+
+            # Add new entry if still within workspace
+            new_relative_path = self._calculate_relative_path(new_absolute_path)
+            if new_relative_path is not None:
+                file_type = 'directory' if event.is_directory else self._get_file_type(new_file_path)
+
+                try:
+                    FileEntry.create(
+                        workspace_id=self.workspace_id,
+                        relative_path=new_relative_path,
+                        absolute_path=new_absolute_path,
+                        file_type=file_type
+                    )
+                    logger.info(f"Added moved entry to index: {new_relative_path}")
+                except sqlite3.IntegrityError:
+                    logger.debug(f"Moved file already exists in index: {new_relative_path}")
+                    pass
+                except Exception as e:
+                    logger.error(f"Error adding moved entry to index: {new_absolute_path}: {e}")
+            else:
+                logger.debug(f"File moved outside workspace paths: {new_absolute_path}")
 
     def on_modified(self, event: FileSystemEvent):
         """Handle file modification events."""
@@ -271,9 +277,16 @@ class FilesystemWatcher:
 
                 # Start observer if not already running
                 if not self.is_running:
-                    self.observer.start()
-                    self.is_running = True
-                    logger.info("Filesystem watcher started")
+                    try:
+                        self.observer.start()
+                        self.is_running = True
+                        logger.info("Filesystem watcher started")
+                    except Exception as e:
+                        logger.error(f"Error starting filesystem watcher: {e}")
+                        # Clean up on failure
+                        self.watching_workspaces.pop(workspace_id, None)
+                        self.workspace_handlers.pop(workspace_id, None)
+                        return False
 
                 logger.info(f"Successfully started watching workspace {workspace_id} ({len(watched_paths)} paths)")
                 return True
@@ -295,6 +308,8 @@ class FilesystemWatcher:
             if workspace_id not in self.watching_workspaces:
                 return False
 
+            logger.info(f"Stopping filesystem watcher for workspace {workspace_id}")
+
             # Remove the workspace from our tracking
             del self.watching_workspaces[workspace_id]
             if workspace_id in self.workspace_handlers:
@@ -302,11 +317,18 @@ class FilesystemWatcher:
 
             # If no workspaces are being watched, stop the observer
             if not self.watching_workspaces and self.is_running:
-                self.observer.stop()
-                self.observer.join(timeout=1.0)  # Give it 1 second to stop gracefully
-                self.observer = Observer()  # Create new observer for future use
-                self.is_running = False
-                logger.info("Filesystem watcher stopped")
+                try:
+                    self.observer.stop()
+                    self.observer.join(timeout=2.0)  # Give it 2 seconds to stop gracefully
+                    if self.observer.is_alive():
+                        logger.warning("Observer thread did not stop gracefully within timeout")
+                except Exception as e:
+                    logger.error(f"Error stopping observer: {e}")
+                finally:
+                    # Always create a new observer for future use and reset state
+                    self.observer = Observer()
+                    self.is_running = False
+                    logger.info("Filesystem watcher stopped")
 
             return True
 
@@ -330,10 +352,18 @@ class FilesystemWatcher:
         """Stop watching all workspaces and shutdown the observer."""
         with self._lock:
             if self.is_running:
-                self.observer.stop()
-                self.observer.join(timeout=1.0)  # Give it 1 second to stop gracefully
-                self.observer = Observer()  # Create new observer for future use
-                self.is_running = False
+                try:
+                    logger.info("Stopping all filesystem watching")
+                    self.observer.stop()
+                    self.observer.join(timeout=2.0)  # Give it 2 seconds to stop gracefully
+                    if self.observer.is_alive():
+                        logger.warning("Observer thread did not stop gracefully within timeout")
+                except Exception as e:
+                    logger.error(f"Error stopping observer: {e}")
+                finally:
+                    # Always create a new observer for future use and reset state
+                    self.observer = Observer()
+                    self.is_running = False
 
             self.watching_workspaces.clear()
             self.workspace_handlers.clear()
@@ -371,18 +401,23 @@ class FilesystemWatcher:
 
 # Global watcher instance
 _global_watcher: Optional[FilesystemWatcher] = None
+_global_watcher_lock = threading.Lock()
 
 
 def get_global_watcher() -> FilesystemWatcher:
     """
     Get the global filesystem watcher instance.
+    Thread-safe singleton pattern.
 
     Returns:
         FilesystemWatcher: The global watcher instance
     """
     global _global_watcher
     if _global_watcher is None:
-        _global_watcher = FilesystemWatcher()
+        with _global_watcher_lock:
+            # Double-checked locking pattern
+            if _global_watcher is None:
+                _global_watcher = FilesystemWatcher()
     return _global_watcher
 
 
