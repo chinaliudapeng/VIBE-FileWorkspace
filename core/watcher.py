@@ -18,6 +18,9 @@ from watchdog.events import FileSystemEventHandler, FileSystemEvent
 
 from .scanner import FileEntry
 from .models import Workspace, WorkspacePath
+from .logging_config import get_logger
+
+logger = get_logger('watcher')
 
 
 class WorkspaceFileHandler(FileSystemEventHandler):
@@ -101,16 +104,20 @@ class WorkspaceFileHandler(FileSystemEventHandler):
         """Handle file creation events."""
         absolute_path = str(Path(event.src_path).resolve())
         file_path = Path(absolute_path)
-        
+
+        logger.debug(f"File created event received: {absolute_path}")
+
         if self._is_hidden(file_path):
+            logger.debug(f"Ignoring hidden file: {absolute_path}")
             return
 
         relative_path = self._calculate_relative_path(absolute_path)
 
         if relative_path is None:
+            logger.debug(f"File not within workspace paths, ignoring: {absolute_path}")
             return  # File is not within any workspace path
 
-        # For directories, watchdog events might fire before we can check is_dir() sometimes, 
+        # For directories, watchdog events might fire before we can check is_dir() sometimes,
         # but since we rely on event.is_directory we can just hardcode the type
         file_type = 'directory' if event.is_directory else self._get_file_type(file_path)
 
@@ -121,38 +128,46 @@ class WorkspaceFileHandler(FileSystemEventHandler):
                 absolute_path=absolute_path,
                 file_type=file_type
             )
-            print(f"Added to index: {relative_path}")
+            logger.info(f"Added to index: {relative_path}")
         except sqlite3.IntegrityError:
             # File already exists in database
+            logger.debug(f"File already indexed, skipping: {relative_path}")
             pass
         except Exception as e:
-            print(f"Error adding to index: {absolute_path}: {e}")
+            logger.error(f"Error adding to index: {absolute_path}: {e}")
 
     def on_deleted(self, event: FileSystemEvent):
         """Handle file deletion events."""
         absolute_path = str(Path(event.src_path).resolve())
 
+        logger.debug(f"File deleted event received: {absolute_path}")
+
         try:
             if FileEntry.delete_by_absolute_path(absolute_path):
-                print(f"Removed from index: {absolute_path}")
+                logger.info(f"Removed from index: {absolute_path}")
+            else:
+                logger.debug(f"File not found in index for deletion: {absolute_path}")
         except Exception as e:
-            print(f"Error removing from index: {absolute_path}: {e}")
+            logger.error(f"Error removing from index: {absolute_path}: {e}")
 
     def on_moved(self, event: FileSystemEvent):
         """Handle file move/rename events."""
         old_absolute_path = str(Path(event.src_path).resolve())
         new_absolute_path = str(Path(event.dest_path).resolve())
         new_file_path = Path(new_absolute_path)
-        
+
+        logger.info(f"File moved/renamed: {old_absolute_path} -> {new_absolute_path}")
+
         # Remove old entry
         try:
             FileEntry.delete_by_absolute_path(old_absolute_path)
-            print(f"Removed old entry: {old_absolute_path}")
+            logger.debug(f"Removed old entry: {old_absolute_path}")
         except Exception as e:
-            print(f"Error removing old entry: {old_absolute_path}: {e}")
+            logger.error(f"Error removing old entry: {old_absolute_path}: {e}")
 
         # If it was moved to a hidden destination, stop here
         if self._is_hidden(new_file_path):
+            logger.debug(f"File moved to hidden location, not adding to index: {new_absolute_path}")
             return
 
         # Add new entry if still within workspace
@@ -167,11 +182,14 @@ class WorkspaceFileHandler(FileSystemEventHandler):
                     absolute_path=new_absolute_path,
                     file_type=file_type
                 )
-                print(f"Added moved entry to index: {new_relative_path}")
+                logger.info(f"Added moved entry to index: {new_relative_path}")
             except sqlite3.IntegrityError:
+                logger.debug(f"Moved file already exists in index: {new_relative_path}")
                 pass
             except Exception as e:
-                print(f"Error adding moved entry to index: {new_absolute_path}: {e}")
+                logger.error(f"Error adding moved entry to index: {new_absolute_path}: {e}")
+        else:
+            logger.debug(f"File moved outside workspace paths: {new_absolute_path}")
 
     def on_modified(self, event: FileSystemEvent):
         """Handle file modification events."""
@@ -199,21 +217,23 @@ class FilesystemWatcher:
         Returns:
             bool: True if watching started successfully, False otherwise
         """
+        logger.info(f"Starting filesystem watcher for workspace {workspace_id}")
+
         with self._lock:
             if workspace_id in self.watching_workspaces:
-                print(f"Already watching workspace {workspace_id}")
+                logger.debug(f"Already watching workspace {workspace_id}")
                 return True
 
             # Verify workspace exists
             workspace = Workspace.get_by_id(workspace_id)
             if not workspace:
-                print(f"Workspace {workspace_id} does not exist")
+                logger.error(f"Workspace {workspace_id} does not exist")
                 return False
 
             # Get workspace paths
             workspace_paths = WorkspacePath.get_paths_for_workspace(workspace_id)
             if not workspace_paths:
-                print(f"No paths found for workspace {workspace_id}")
+                logger.warning(f"No paths found for workspace {workspace_id}")
                 return False
 
             # Create handler for this workspace
@@ -226,7 +246,7 @@ class FilesystemWatcher:
                 path_obj = Path(workspace_path.root_path)
 
                 if not path_obj.exists():
-                    print(f"Warning: Path does not exist: {workspace_path.root_path}")
+                    logger.warning(f"Path does not exist: {workspace_path.root_path}")
                     continue
 
                 try:
@@ -234,16 +254,16 @@ class FilesystemWatcher:
                         # Watch the directory recursively
                         self.observer.schedule(handler, str(path_obj), recursive=True)
                         watched_paths.add(str(path_obj))
-                        print(f"Watching directory: {path_obj}")
+                        logger.info(f"Watching directory: {path_obj}")
                     elif workspace_path.path_type == 'file' and path_obj.is_file():
                         # Watch the parent directory of the file
                         parent_dir = path_obj.parent
                         if str(parent_dir) not in watched_paths:
                             self.observer.schedule(handler, str(parent_dir), recursive=False)
                             watched_paths.add(str(parent_dir))
-                            print(f"Watching file's parent directory: {parent_dir}")
+                            logger.info(f"Watching file's parent directory: {parent_dir}")
                 except Exception as e:
-                    print(f"Error watching path {workspace_path.root_path}: {e}")
+                    logger.error(f"Error watching path {workspace_path.root_path}: {e}")
                     continue
 
             if watched_paths:
@@ -253,11 +273,12 @@ class FilesystemWatcher:
                 if not self.is_running:
                     self.observer.start()
                     self.is_running = True
-                    print("Filesystem watcher started")
+                    logger.info("Filesystem watcher started")
 
+                logger.info(f"Successfully started watching workspace {workspace_id} ({len(watched_paths)} paths)")
                 return True
             else:
-                print(f"No valid paths to watch for workspace {workspace_id}")
+                logger.error(f"No valid paths to watch for workspace {workspace_id}")
                 return False
 
     def stop_watching_workspace(self, workspace_id: int) -> bool:

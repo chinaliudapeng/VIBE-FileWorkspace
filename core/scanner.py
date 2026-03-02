@@ -12,6 +12,9 @@ from pathlib import Path
 from typing import List, Optional, Dict, Any
 from .db import get_connection
 from .models import WorkspacePath
+from .logging_config import get_logger
+
+logger = get_logger('scanner')
 
 
 class FileEntry:
@@ -43,6 +46,8 @@ class FileEntry:
             sqlite3.IntegrityError: If absolute_path already exists
             ValueError: If workspace_id doesn't exist
         """
+        logger.debug(f"Creating file entry: workspace_id={workspace_id}, relative_path='{relative_path}', file_type='{file_type}'")
+
         conn = get_connection()
         try:
             cursor = conn.cursor()
@@ -50,7 +55,9 @@ class FileEntry:
             # Verify workspace exists
             cursor.execute('SELECT id FROM workspace WHERE id = ?', (workspace_id,))
             if not cursor.fetchone():
-                raise ValueError(f"Workspace with ID {workspace_id} does not exist")
+                error_msg = f"Workspace with ID {workspace_id} does not exist"
+                logger.error(error_msg)
+                raise ValueError(error_msg)
 
             cursor.execute('''
                 INSERT INTO file_entry (workspace_id, relative_path, absolute_path, file_type)
@@ -60,11 +67,14 @@ class FileEntry:
             file_id = cursor.lastrowid
             conn.commit()
 
+            logger.debug(f"Successfully created file entry with ID {file_id}: {absolute_path}")
+
             return cls(id=file_id, workspace_id=workspace_id,
                       relative_path=relative_path, absolute_path=absolute_path, file_type=file_type)
 
         except sqlite3.Error as e:
             conn.rollback()
+            logger.error(f"Database error creating file entry for {absolute_path}: {e}")
             raise
         finally:
             conn.close()
@@ -85,7 +95,10 @@ class FileEntry:
             sqlite3.Error: For database-related errors
         """
         if not file_entries:
+            logger.debug("Batch create called with empty file list")
             return []
+
+        logger.info(f"Starting batch creation of {len(file_entries)} file entries")
 
         conn = get_connection()
         created_entries = []
@@ -95,10 +108,14 @@ class FileEntry:
 
             # Verify all workspaces exist (get unique workspace IDs)
             workspace_ids = set(entry['workspace_id'] for entry in file_entries)
+            logger.debug(f"Verifying workspaces exist for IDs: {workspace_ids}")
+
             for workspace_id in workspace_ids:
                 cursor.execute('SELECT id FROM workspace WHERE id = ?', (workspace_id,))
                 if not cursor.fetchone():
-                    raise ValueError(f"Workspace with ID {workspace_id} does not exist")
+                    error_msg = f"Workspace with ID {workspace_id} does not exist"
+                    logger.error(error_msg)
+                    raise ValueError(error_msg)
 
             # Prepare batch insert data, filtering out duplicates
             insert_data = []
@@ -117,6 +134,8 @@ class FileEntry:
                     absolute_paths_to_insert.add(absolute_path)
 
             if insert_data:
+                logger.debug(f"Executing batch insert for {len(insert_data)} unique file entries")
+
                 # Use executemany for batch insertion with INSERT OR IGNORE to handle duplicates
                 cursor.executemany('''
                     INSERT OR IGNORE INTO file_entry (workspace_id, relative_path, absolute_path, file_type)
@@ -142,9 +161,13 @@ class FileEntry:
                         ))
 
                 conn.commit()
+                logger.info(f"Successfully batch created {len(created_entries)} file entries")
+            else:
+                logger.debug("No unique files to insert after duplicate filtering")
 
         except sqlite3.Error as e:
             conn.rollback()
+            logger.error(f"Database error during batch creation: {e}")
             raise
         finally:
             conn.close()
@@ -288,6 +311,9 @@ class FileEntry:
         Returns:
             List[FileEntry]: List of matching file entries
         """
+        scope = f"workspace {workspace_id}" if workspace_id else "all workspaces"
+        logger.debug(f"Searching for keyword '{keyword}' in {scope}")
+
         conn = get_connection()
         try:
             cursor = conn.cursor()
@@ -318,9 +344,11 @@ class FileEntry:
                 )
                 files.append(file_entry)
 
+            logger.info(f"Keyword search for '{keyword}' returned {len(files)} results")
             return files
 
         except sqlite3.Error as e:
+            logger.error(f"Database error searching by keyword '{keyword}': {e}")
             raise
         finally:
             conn.close()
@@ -338,7 +366,11 @@ class FileEntry:
             List[FileEntry]: List of matching file entries
         """
         if not tag_names:
+            logger.debug("Search by tags called with empty tag list")
             return []
+
+        scope = f"workspace {workspace_id}" if workspace_id else "all workspaces"
+        logger.debug(f"Searching for tags {tag_names} in {scope}")
 
         conn = get_connection()
         try:
@@ -386,9 +418,11 @@ class FileEntry:
                 )
                 files.append(file_entry)
 
+            logger.info(f"Tag search for {tag_names} returned {len(files)} results")
             return files
 
         except sqlite3.Error as e:
+            logger.error(f"Database error searching by tags {tag_names}: {e}")
             raise
         finally:
             conn.close()
@@ -536,14 +570,14 @@ class FilesystemScanner:
                             'file_type': 'directory'
                         })
                     except (OSError, ValueError) as e:
-                        print(f"Warning: Could not process directory {current_dir}: {e}")
+                        logger.warning(f"Could not process directory {current_dir}: {e}")
 
                 # Process files
                 for f in files:
                     file_path = current_dir / f
                     if self._is_hidden(file_path):
                         continue
-                        
+
                     try:
                         relative_path = file_path.relative_to(root_path)
                         absolute_path = str(file_path.resolve())
@@ -555,10 +589,10 @@ class FilesystemScanner:
                             'file_type': file_type
                         })
                     except (OSError, ValueError) as e:
-                        print(f"Warning: Could not process file {file_path}: {e}")
+                        logger.warning(f"Could not process file {file_path}: {e}")
 
         except (OSError, PermissionError) as e:
-            print(f"Warning: Could not access directory {directory_path}: {e}")
+            logger.error(f"Could not access directory {directory_path}: {e}")
 
         return discovered_files
 
@@ -591,7 +625,7 @@ class FilesystemScanner:
                     'file_type': file_type
                 })
         except (OSError, ValueError) as e:
-            print(f"Warning: Could not process file {file_path}: {e}")
+            logger.warning(f"Could not process file {file_path}: {e}")
 
         return discovered_files
 
@@ -607,10 +641,11 @@ class FilesystemScanner:
             ValueError: If workspace doesn't exist
         """
         # Get all workspace paths
+        logger.info(f"Starting scan for workspace ID {self.workspace_id}")
         workspace_paths = WorkspacePath.get_paths_for_workspace(self.workspace_id)
 
         if not workspace_paths:
-            print(f"No paths found for workspace ID {self.workspace_id}")
+            logger.warning(f"No paths found for workspace ID {self.workspace_id}")
             return 0
 
         # Collect all files from all paths before inserting
@@ -620,10 +655,10 @@ class FilesystemScanner:
             path_obj = Path(workspace_path.root_path)
 
             if not path_obj.exists():
-                print(f"Warning: Path does not exist: {workspace_path.root_path}")
+                logger.warning(f"Path does not exist: {workspace_path.root_path}")
                 continue
 
-            print(f"Scanning {workspace_path.path_type}: {workspace_path.root_path}")
+            logger.info(f"Scanning {workspace_path.path_type}: {workspace_path.root_path}")
 
             discovered_files = []
 
@@ -644,19 +679,20 @@ class FilesystemScanner:
             batch_threshold = 100  # Use batch insertion for 100+ files
 
             if len(all_files_to_insert) >= batch_threshold:
-                print(f"Using batch insertion for {len(all_files_to_insert)} files...")
+                logger.info(f"Using batch insertion for {len(all_files_to_insert)} files...")
                 try:
                     created_entries = FileEntry.create_batch(all_files_to_insert)
                     total_files_added = len(created_entries)
                 except Exception as e:
-                    print(f"Batch insertion failed, falling back to individual inserts: {e}")
+                    logger.warning(f"Batch insertion failed, falling back to individual inserts: {e}")
                     # Fallback to individual insertion
                     total_files_added = self._insert_files_individually(all_files_to_insert)
             else:
                 # For smaller sets, use individual insertion as before
+                logger.debug(f"Using individual insertion for {len(all_files_to_insert)} files (below batch threshold)")
                 total_files_added = self._insert_files_individually(all_files_to_insert)
 
-        print(f"Scanning complete. Added {total_files_added} files to the database.")
+        logger.info(f"Scanning complete. Added {total_files_added} files to the database.")
         return total_files_added
 
     def _insert_files_individually(self, files_to_insert: List[Dict[str, Any]]) -> int:
@@ -682,12 +718,13 @@ class FilesystemScanner:
                 total_added += 1
             except sqlite3.IntegrityError:
                 # File already exists in database, skip
-                print(f"File already indexed: {file_info['absolute_path']}")
+                logger.debug(f"File already indexed: {file_info['absolute_path']}")
                 continue
             except Exception as e:
-                print(f"Error adding file to database: {file_info['absolute_path']}: {e}")
+                logger.error(f"Error adding file to database: {file_info['absolute_path']}: {e}")
                 continue
 
+        logger.debug(f"Individual insertion completed: {total_added} files added")
         return total_added
 
     def rescan_workspace(self) -> Dict[str, int]:
@@ -697,9 +734,12 @@ class FilesystemScanner:
         Returns:
             Dict[str, int]: Statistics about the rescan (removed, added, total)
         """
+        logger.info(f"Starting rescan for workspace ID {self.workspace_id}")
+
         # Get current file entries for this workspace
         current_files = FileEntry.get_files_for_workspace(self.workspace_id)
         current_absolute_paths = {f.absolute_path for f in current_files}
+        logger.debug(f"Found {len(current_files)} existing files before rescan")
 
         # Scan for current files
         self.scan_workspace_paths()
@@ -713,6 +753,7 @@ class FilesystemScanner:
         for file_entry in current_files:
             file_path = Path(file_entry.absolute_path)
             if not file_path.exists():
+                logger.debug(f"Removing stale file entry: {file_entry.absolute_path}")
                 FileEntry.delete_by_absolute_path(file_entry.absolute_path)
                 removed_count += 1
 
@@ -723,11 +764,14 @@ class FilesystemScanner:
         final_files = FileEntry.get_files_for_workspace(self.workspace_id)
         total_count = len(final_files)
 
-        return {
+        stats = {
             'removed': removed_count,
             'added': added_count,
             'total': total_count
         }
+
+        logger.info(f"Rescan complete for workspace ID {self.workspace_id}: {stats}")
+        return stats
 
 
 def scan_workspace(workspace_id: int) -> int:

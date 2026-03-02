@@ -10,6 +10,9 @@ import sqlite3
 from datetime import datetime
 from typing import List, Dict, Optional, Any
 from .db import get_connection
+from .logging_config import get_logger
+
+logger = get_logger('models')
 
 
 class Workspace:
@@ -37,7 +40,10 @@ class Workspace:
         """
         # Validate name is not empty or whitespace-only
         if not name or not name.strip():
+            logger.error(f"Attempted to create workspace with empty name: '{name}'")
             raise ValueError("Workspace name cannot be empty")
+
+        logger.debug(f"Creating new workspace: '{name.strip()}'")
 
         conn = get_connection()
         try:
@@ -52,10 +58,12 @@ class Workspace:
             workspace_id = cursor.lastrowid
             conn.commit()
 
+            logger.info(f"Successfully created workspace '{name.strip()}' with ID {workspace_id}")
             return cls(id=workspace_id, name=name.strip(), created_at=created_at)
 
         except sqlite3.Error as e:
             conn.rollback()
+            logger.error(f"Database error creating workspace '{name.strip()}': {e}")
             raise
         finally:
             conn.close()
@@ -180,6 +188,8 @@ class Workspace:
         Returns:
             bool: True if workspace was deleted, False if not found
         """
+        logger.info(f"Attempting to delete workspace with ID {workspace_id}")
+
         conn = get_connection()
         try:
             cursor = conn.cursor()
@@ -187,24 +197,29 @@ class Workspace:
             # Check if workspace exists first
             cursor.execute('SELECT id FROM workspace WHERE id = ?', (workspace_id,))
             if not cursor.fetchone():
+                logger.warning(f"Workspace with ID {workspace_id} not found for deletion")
                 return False
 
             # Stop filesystem watcher for this workspace before deletion
             try:
                 from . import watcher
+                logger.debug(f"Stopping filesystem watcher for workspace {workspace_id}")
                 watcher.stop_watching_workspace(workspace_id)
-            except Exception:
+            except Exception as e:
                 # Don't fail the delete if watcher cleanup fails
+                logger.warning(f"Failed to stop filesystem watcher for workspace {workspace_id}: {e}")
                 pass
 
             # Delete the workspace (cascades to related tables)
             cursor.execute('DELETE FROM workspace WHERE id = ?', (workspace_id,))
             conn.commit()
 
+            logger.info(f"Successfully deleted workspace with ID {workspace_id} and all associated data")
             return True
 
         except sqlite3.Error as e:
             conn.rollback()
+            logger.error(f"Database error deleting workspace {workspace_id}: {e}")
             raise
         finally:
             conn.close()
@@ -539,9 +554,11 @@ class Tag:
         """
         # Validate tag_name is not empty
         if not tag_name or not tag_name.strip():
+            logger.error(f"Attempted to add empty tag to file {file_id}")
             raise ValueError("tag_name cannot be empty")
 
         tag_name = tag_name.strip()
+        logger.debug(f"Adding tag '{tag_name}' to file {file_id}")
 
         conn = get_connection()
         try:
@@ -550,7 +567,9 @@ class Tag:
             # Verify file exists
             cursor.execute('SELECT id FROM file_entry WHERE id = ?', (file_id,))
             if not cursor.fetchone():
-                raise ValueError(f"File with ID {file_id} does not exist")
+                error_msg = f"File with ID {file_id} does not exist"
+                logger.error(error_msg)
+                raise ValueError(error_msg)
 
             # Insert the tag
             cursor.execute('''
@@ -561,10 +580,12 @@ class Tag:
             tag_id = cursor.lastrowid
             conn.commit()
 
+            logger.info(f"Successfully added tag '{tag_name}' to file {file_id} with tag ID {tag_id}")
             return cls(id=tag_id, file_id=file_id, tag_name=tag_name)
 
         except sqlite3.Error as e:
             conn.rollback()
+            logger.error(f"Database error adding tag '{tag_name}' to file {file_id}: {e}")
             raise
         finally:
             conn.close()
