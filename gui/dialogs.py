@@ -718,11 +718,13 @@ class TagDialog(QDialog):
 
     def refresh_tags_display(self):
         """Refresh the visual display of current tags."""
-        # Clear existing tag widgets
-        for i in reversed(range(self.tags_layout.count())):
-            child = self.tags_layout.itemAt(i).widget()
-            if child:
-                child.deleteLater()
+        # Clear existing tag widgets with immediate deletion
+        while self.tags_layout.count():
+            child = self.tags_layout.takeAt(0)
+            widget = child.widget()
+            if widget:
+                widget.setParent(None)
+                widget.deleteLater()
 
         # Reset layout properties for consistent positioning
         self.tags_layout.setAlignment(Qt.AlignTop | Qt.AlignLeft)
@@ -774,10 +776,6 @@ class TagDialog(QDialog):
             no_tags_label.setContentsMargins(8, 0, 8, 0)
             self.tags_layout.addWidget(no_tags_label)
 
-        # Add consistent bottom spacing without stretch to prevent jumping
-        spacer_widget = QWidget()
-        spacer_widget.setFixedHeight(10)  # Fixed spacing instead of flexible stretch
-        self.tags_layout.addWidget(spacer_widget)
 
     def _remove_tag_pill(self, tag_pill: TagPillWidget):
         """Remove a tag from the current tags set."""

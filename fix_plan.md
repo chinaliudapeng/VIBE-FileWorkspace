@@ -239,3 +239,10 @@
 - [x] Testing: Successfully verified with non-interactive test covering varying tag counts (0, 2, 8, 10, 11 tags)
 - [x] Build verification: Windows executable (51MB) built and launched successfully with fix included
 - [x] Commit: Changes committed with comprehensive description of layout stability improvements
+
+## Bug Fixes 0014
+- [] Fix: Tag编辑面板中,CurrentTags有内容时,最下方有一条高度很小的空行,删除它.
+- [] Fix: Tag编辑面板中,CurrentTags无内容时,面板上残留两个高度很小的空行,删除它们.
+- [] 自行测试.
+- [] 构建最新的Exe并打开.
+- [] Commit and Push Git.

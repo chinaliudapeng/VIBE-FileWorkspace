@@ -1,0 +1,8 @@
+Defaulting to user installation because normal site-packages is not writeable
+Requirement already satisfied: pyinstaller in c:\users\china\appdata\roaming\python\python314\site-packages (6.19.0)
+Requirement already satisfied: altgraph in c:\users\china\appdata\roaming\python\python314\site-packages (from pyinstaller) (0.17.5)
+Requirement already satisfied: packaging>=22.0 in c:\users\china\appdata\roaming\python\python314\site-packages (from pyinstaller) (26.0)
+Requirement already satisfied: pefile>=2022.5.30 in c:\users\china\appdata\roaming\python\python314\site-packages (from pyinstaller) (2024.8.26)
+Requirement already satisfied: pyinstaller-hooks-contrib>=2026.0 in c:\users\china\appdata\roaming\python\python314\site-packages (from pyinstaller) (2026.1)
+Requirement already satisfied: pywin32-ctypes>=0.2.1 in c:\users\china\appdata\roaming\python\python314\site-packages (from pyinstaller) (0.2.3)
+Requirement already satisfied: setuptools>=42.0.0 in c:\users\china\appdata\roaming\python\python314\site-packages (from pyinstaller) (82.0.0)
