@@ -101,3 +101,10 @@
   - [x] Tag pills/badges properly implemented as custom PySide6 delegates
   - [x] Modern dark theme matches specification requirements
 - [x] **Specification Completeness**: All features from `spec.md` are fully implemented and functional
+
+## Bug Fixes 0004 ✅ COMPLETED
+- [x] Fix StateFlag enum conversion bug in GUI delegates.py causing "TypeError: int() argument must be a string, a bytes-like object or a real number, not 'StateFlag'" when rendering tag pills.
+- [x] Issue: Line 66 in `gui/delegates.py` incorrectly tries to convert `option.state` (already a StateFlag) to int.
+- [x] Resolution: Updated code to handle both integer and StateFlag enum values robustly by checking type and converting appropriately.
+- [x] Verification: All delegate tests now pass (12/12) and GUI launches without StateFlag errors.
+- [x] Commit Git.

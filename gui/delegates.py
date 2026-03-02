@@ -63,7 +63,13 @@ class TagPillDelegate(QStyledItemDelegate):
             return
 
         # Clear the cell background
-        if int(option.state) & int(QStyle.StateFlag.State_Selected.value):
+        # Handle both integer and StateFlag enum values for option.state
+        try:
+            state_value = option.state.value if hasattr(option.state, 'value') else int(option.state)
+        except (ValueError, AttributeError):
+            state_value = int(option.state)
+
+        if state_value & int(QStyle.StateFlag.State_Selected.value):
             painter.fillRect(option.rect, option.palette.highlight())
         elif index.row() % 2 == 1:
             # Alternate row color
