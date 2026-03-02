@@ -246,10 +246,10 @@ class FileEntry:
     @classmethod
     def search_by_tags(cls, tag_names: List[str], workspace_id: Optional[int] = None) -> List['FileEntry']:
         """
-        Search for files by tag names.
+        Search for files by tag names using partial matching.
 
         Args:
-            tag_names: List of tag names to search for
+            tag_names: List of tag names to search for (partial matches)
             workspace_id: Optional workspace ID to limit search to
 
         Returns:
@@ -262,27 +262,34 @@ class FileEntry:
         try:
             cursor = conn.cursor()
 
-            # Create placeholders for the IN clause
-            placeholders = ','.join(['?' for _ in tag_names])
+            # Create LIKE conditions for partial matching
+            like_conditions = []
+            params = []
+
+            # Build the WHERE conditions for LIKE queries
+            for tag_name in tag_names:
+                like_conditions.append('t.tag_name LIKE ?')
+                params.append(f'%{tag_name}%')
+
+            like_clause = ' OR '.join(like_conditions)
 
             if workspace_id:
                 query = f'''
                     SELECT DISTINCT fe.id, fe.workspace_id, fe.relative_path, fe.absolute_path, fe.file_type
                     FROM file_entry fe
                     INNER JOIN tags t ON fe.id = t.file_id
-                    WHERE fe.workspace_id = ? AND t.tag_name IN ({placeholders})
+                    WHERE fe.workspace_id = ? AND ({like_clause})
                     ORDER BY fe.relative_path ASC
                 '''
-                params = [workspace_id] + tag_names
+                params = [workspace_id] + params
             else:
                 query = f'''
                     SELECT DISTINCT fe.id, fe.workspace_id, fe.relative_path, fe.absolute_path, fe.file_type
                     FROM file_entry fe
                     INNER JOIN tags t ON fe.id = t.file_id
-                    WHERE t.tag_name IN ({placeholders})
+                    WHERE ({like_clause})
                     ORDER BY fe.relative_path ASC
                 '''
-                params = tag_names
 
             cursor.execute(query, params)
 

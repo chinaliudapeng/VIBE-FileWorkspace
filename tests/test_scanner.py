@@ -15,7 +15,7 @@ import sys
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from core.db import initialize_database, get_connection, get_db_path
-from core.models import Workspace, WorkspacePath
+from core.models import Workspace, WorkspacePath, Tag
 from core.scanner import FileEntry, FilesystemScanner, scan_workspace, rescan_workspace
 
 
@@ -171,6 +171,86 @@ class TestFileEntry(unittest.TestCase):
         # Try non-existent path
         retrieved = FileEntry.get_by_absolute_path("/nonexistent/file.txt")
         self.assertIsNone(retrieved)
+
+    def test_search_by_tags_partial_matching(self):
+        """Test partial tag search functionality."""
+        # Create test files
+        file1 = FileEntry.create(
+            workspace_id=self.workspace.id,
+            relative_path="project/main.py",
+            absolute_path="/absolute/project/main.py",
+            file_type="py"
+        )
+        file2 = FileEntry.create(
+            workspace_id=self.workspace.id,
+            relative_path="src/utils.py",
+            absolute_path="/absolute/src/utils.py",
+            file_type="py"
+        )
+        file3 = FileEntry.create(
+            workspace_id=self.workspace.id,
+            relative_path="docs/readme.md",
+            absolute_path="/absolute/docs/readme.md",
+            file_type="md"
+        )
+
+        # Create another workspace with a file
+        other_workspace = Workspace.create("Other Workspace")
+        file4 = FileEntry.create(
+            workspace_id=other_workspace.id,
+            relative_path="other.py",
+            absolute_path="/absolute/other.py",
+            file_type="py"
+        )
+
+        # Add tags to files
+        Tag.add_tag_to_file(file1.id, 'python-script')
+        Tag.add_tag_to_file(file1.id, 'main-entry')
+        Tag.add_tag_to_file(file2.id, 'python-utils')
+        Tag.add_tag_to_file(file3.id, 'documentation')
+        Tag.add_tag_to_file(file4.id, 'python-other')
+
+        # Test exact matching still works
+        files = FileEntry.search_by_tags(['python-script'])
+        self.assertEqual(len(files), 1)
+        self.assertEqual(files[0].id, file1.id)
+
+        # Test partial matching - searching for 'python' should match tags containing 'python'
+        files = FileEntry.search_by_tags(['python'])
+        self.assertEqual(len(files), 3)  # file1, file2, file4 all have tags containing 'python'
+        file_ids = [f.id for f in files]
+        self.assertIn(file1.id, file_ids)
+        self.assertIn(file2.id, file_ids)
+        self.assertIn(file4.id, file_ids)
+
+        # Test partial matching with workspace filter
+        files = FileEntry.search_by_tags(['python'], workspace_id=self.workspace.id)
+        self.assertEqual(len(files), 2)  # Only file1 and file2 from test workspace
+        file_ids = [f.id for f in files]
+        self.assertIn(file1.id, file_ids)
+        self.assertIn(file2.id, file_ids)
+        self.assertNotIn(file4.id, file_ids)  # file4 is in other workspace
+
+        # Test partial matching with substring
+        files = FileEntry.search_by_tags(['main'])
+        self.assertEqual(len(files), 1)  # Only file1 has tag containing 'main'
+        self.assertEqual(files[0].id, file1.id)
+
+        # Test multiple partial matches
+        files = FileEntry.search_by_tags(['python', 'doc'])
+        self.assertEqual(len(files), 4)  # file1, file2, file3 (doc), file4 (python)
+
+        # Test case-insensitive partial matching
+        files = FileEntry.search_by_tags(['PYTHON'])
+        self.assertEqual(len(files), 3)  # Should still find python-* tags
+
+        # Test non-matching partial search
+        files = FileEntry.search_by_tags(['nonexistent'])
+        self.assertEqual(len(files), 0)
+
+        # Test empty search
+        files = FileEntry.search_by_tags([])
+        self.assertEqual(len(files), 0)
 
 
 class TestFilesystemScanner(unittest.TestCase):

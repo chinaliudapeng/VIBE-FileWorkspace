@@ -267,3 +267,21 @@
 - [x] Resolution: Removed the CSS `margin: 20px` (changed to 0px) from `QLabel#noTagsLabel` in `gui/dialogs.py` `apply_theme()`, allowing the "No tags assigned" text to correctly render within its 32px fixed height layout area.
 - [x] Testing: Verified 164 existing tests pass cleanly without regression.
 - [x] Commit Git.
+
+## Feature Requests 005 (Partial Tag Search) ✅ COMPLETED
+- [x] Feature: 修改搜索逻辑 - 搜索框内的文本与Tag匹配时，改成Tag字符串包含搜索框输入的字符串即判定匹配，而不是完全相等才匹配。
+- [x] Resolution: Modified `FileEntry.search_by_tags()` method in `core/scanner.py` to use LIKE with wildcards (`%{tag_name}%`) instead of exact IN matching. This enables partial/substring matching for tag searches.
+- [x] Key changes:
+  - Changed SQL query from `t.tag_name IN ({placeholders})` to `t.tag_name LIKE ?` with `%{tag_name}%` wildcards
+  - Supports case-insensitive partial matching (SQLite LIKE is case-insensitive by default)
+  - Maintains workspace filtering functionality
+  - Uses OR conditions for multiple tag searches to find files with any matching tags
+- [x] Testing: Added comprehensive test `test_search_by_tags_partial_matching()` in `tests/test_scanner.py` covering:
+  - Exact matching (still works as before)
+  - Partial matching (tags containing search term)
+  - Workspace filtering with partial matching
+  - Multiple partial matches
+  - Case-insensitive matching
+  - Edge cases (empty search, non-matching terms)
+- [x] Verification: All 165 existing tests pass, ensuring no regression in functionality.
+- [x] Commit Git.
