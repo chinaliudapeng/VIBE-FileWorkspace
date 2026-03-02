@@ -499,14 +499,16 @@ class TagPillWidget(QWidget):
         ]
         color = colors[hash(self.tag_name) % len(colors)]
 
-        # Calculate contrasting text color
-        text_color = "#ffffff" if self._is_dark_color(color) else "#000000"
+        # Always use white text for consistency and readability in dark theme
+        # The background colors are all chosen to provide good contrast with white text
+        text_color = "#ffffff"
 
         self.setStyleSheet(f"""
             TagPillWidget {{
                 background-color: {color};
                 border-radius: 12px;
                 margin: 2px;
+                padding: 2px;
             }}
             QLabel#tagLabel {{
                 color: {text_color};
@@ -514,6 +516,7 @@ class TagPillWidget(QWidget):
                 font-weight: 500;
                 background: transparent;
                 border: none;
+                padding: 0px;
             }}
             QPushButton#tagRemoveButton {{
                 background: transparent;
@@ -522,6 +525,7 @@ class TagPillWidget(QWidget):
                 font-weight: bold;
                 font-size: 14px;
                 border-radius: 8px;
+                padding: 0px;
             }}
             QPushButton#tagRemoveButton:hover {{
                 background-color: rgba(255, 255, 255, 0.2);
@@ -530,6 +534,8 @@ class TagPillWidget(QWidget):
 
     def _is_dark_color(self, color_hex: str) -> bool:
         """Determine if a color is dark (for text contrast)."""
+        # This method is kept for compatibility but not used anymore
+        # since we now always use white text for consistency
         color_hex = color_hex.lstrip('#')
         r = int(color_hex[0:2], 16)
         g = int(color_hex[2:4], 16)
@@ -718,52 +724,50 @@ class TagDialog(QDialog):
             if child:
                 child.deleteLater()
 
+        # Ensure the main layout is aligned to top-left
+        self.tags_layout.setAlignment(Qt.AlignTop | Qt.AlignLeft)
+        self.tags_layout.setSpacing(8)
+
         # Add tag pills for current tags
         if self.current_tags:
-            # Create a flow layout for tag pills
-            current_row_layout = QHBoxLayout()
-            current_row_layout.setSpacing(5)
-            current_row_layout.setAlignment(Qt.AlignLeft)
+            # Create a simple flow layout approach with consistent alignment
+            current_row_layout = None
+            pills_per_row = 0
+            max_pills_per_row = 6  # Simple fixed number instead of width estimation
 
-            row_width = 0
-            max_width = 400  # Approximate container width
+            for i, tag_name in enumerate(sorted(self.current_tags)):
+                # Start a new row when needed
+                if pills_per_row == 0:
+                    current_row_layout = QHBoxLayout()
+                    current_row_layout.setSpacing(8)
+                    current_row_layout.setAlignment(Qt.AlignLeft)  # Always left-align
+                    current_row_layout.setContentsMargins(5, 0, 5, 0)
 
-            for tag_name in sorted(self.current_tags):
                 tag_pill = TagPillWidget(tag_name, self, tag_dialog=self)
+                current_row_layout.addWidget(tag_pill)
+                pills_per_row += 1
 
-                # Estimate pill width (rough calculation)
-                pill_width = len(tag_name) * 8 + 40  # Rough estimate
+                # Complete the row and add it to main layout
+                if pills_per_row == max_pills_per_row or i == len(self.current_tags) - 1:
+                    # Add stretch to keep pills aligned left within the row
+                    current_row_layout.addStretch()
 
-                # If this pill would exceed row width, start a new row
-                if row_width + pill_width > max_width and row_width > 0:
-                    # Add current row to layout
+                    # Create container widget with consistent properties
                     row_widget = QWidget()
                     row_widget.setLayout(current_row_layout)
+                    row_widget.setFixedHeight(32)  # Fixed height for consistency
+
                     self.tags_layout.addWidget(row_widget)
-
-                    # Start new row
-                    current_row_layout = QHBoxLayout()
-                    current_row_layout.setSpacing(5)
-                    current_row_layout.setAlignment(Qt.AlignLeft)
-                    row_width = 0
-
-                current_row_layout.addWidget(tag_pill)
-                row_width += pill_width
-
-            # Add the last row
-            if current_row_layout.count() > 0:
-                current_row_layout.addStretch()  # Push pills to the left
-                row_widget = QWidget()
-                row_widget.setLayout(current_row_layout)
-                self.tags_layout.addWidget(row_widget)
+                    pills_per_row = 0
         else:
-            # Show "No tags" message
+            # Show "No tags" message with consistent alignment
             no_tags_label = QLabel("No tags assigned")
             no_tags_label.setObjectName("noTagsLabel")
-            no_tags_label.setAlignment(Qt.AlignCenter)
+            no_tags_label.setAlignment(Qt.AlignTop | Qt.AlignLeft)  # Top-left aligned
+            no_tags_label.setContentsMargins(5, 10, 5, 10)
             self.tags_layout.addWidget(no_tags_label)
 
-        # Add stretch to push content to top
+        # Add stretch to push all content to top
         self.tags_layout.addStretch()
 
     def _remove_tag_pill(self, tag_pill: TagPillWidget):

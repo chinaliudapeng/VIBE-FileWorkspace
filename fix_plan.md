@@ -192,11 +192,12 @@
 - [x] Verification: Created test script that successfully verified tag removal functionality. All existing 164 unit tests continue to pass.
 - [x] Commit Git.
 
-## Bug Fixes 0011
-- [ ] Fix: Tag编辑面板中添加Tag时Current Tags显示区域总是乱动,貌似没有基于区域左上角对齐.
-- [ ] Fix: Tag编辑面板中显示的Tag文本统一设置为白色,现有有暗色文本,这部分暗色文本看不清.
-- [ ] 自行测试.
-- [ ] Commit Git.
+## Bug Fixes 0011 ✅ COMPLETED
+- [x] Fix: Tag编辑面板中添加Tag时Current Tags显示区域总是乱动,貌似没有基于区域左上角对齐.
+- [x] Fix: Tag编辑面板中显示的Tag文本统一设置为白色,现有有暗色文本,这部分暗色文本看不清.
+- [x] 自行测试.
+- [x] Commit Git.
+- [x] Resolution: Fixed tag display alignment by simplifying layout logic with consistent top-left alignment and fixed row heights. Improved text readability by using uniform white text color for all tag pills. Layout no longer jumps around when adding/removing tags, and all tag text is now consistently readable.
 
 ## Bug Fixes 0012
 - [ ] Fix: 搜索功能输入Tag的名称没有筛选出对应Tag的条目,但是输入文件名可以.
