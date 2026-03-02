@@ -7,6 +7,7 @@ the database accordingly.
 """
 
 import os
+import ctypes
 import sqlite3
 import threading
 import time
@@ -44,10 +45,29 @@ class WorkspaceFileHandler(FileSystemEventHandler):
         Returns:
             str: File type (extension without dot, or 'unknown')
         """
+        if file_path.is_dir():
+            return 'directory'
         suffix = file_path.suffix.lower()
         if suffix:
             return suffix[1:]  # Remove the dot
         return 'unknown'
+
+    def _is_hidden(self, path: Path) -> bool:
+        """Check if a file or directory is hidden."""
+        # Check if any part of the path starts with a dot
+        if any(part.startswith('.') for part in path.parts):
+            return True
+            
+        # Check Windows hidden attribute
+        if os.name == 'nt':
+            try:
+                attrs = ctypes.windll.kernel32.GetFileAttributesW(str(path))
+                if attrs != -1 and bool(attrs & 2):  # FILE_ATTRIBUTE_HIDDEN = 2
+                    return True
+            except Exception:
+                pass
+                
+        return False
 
     def _calculate_relative_path(self, absolute_path: str) -> Optional[str]:
         """
@@ -79,17 +99,20 @@ class WorkspaceFileHandler(FileSystemEventHandler):
 
     def on_created(self, event: FileSystemEvent):
         """Handle file creation events."""
-        if event.is_directory:
-            return  # We only track files, not directories
-
         absolute_path = str(Path(event.src_path).resolve())
+        file_path = Path(absolute_path)
+        
+        if self._is_hidden(file_path):
+            return
+
         relative_path = self._calculate_relative_path(absolute_path)
 
         if relative_path is None:
             return  # File is not within any workspace path
 
-        file_path = Path(absolute_path)
-        file_type = self._get_file_type(file_path)
+        # For directories, watchdog events might fire before we can check is_dir() sometimes, 
+        # but since we rely on event.is_directory we can just hardcode the type
+        file_type = 'directory' if event.is_directory else self._get_file_type(file_path)
 
         try:
             FileEntry.create(
@@ -98,47 +121,44 @@ class WorkspaceFileHandler(FileSystemEventHandler):
                 absolute_path=absolute_path,
                 file_type=file_type
             )
-            print(f"Added file to index: {relative_path}")
+            print(f"Added to index: {relative_path}")
         except sqlite3.IntegrityError:
             # File already exists in database
             pass
         except Exception as e:
-            print(f"Error adding file to index: {absolute_path}: {e}")
+            print(f"Error adding to index: {absolute_path}: {e}")
 
     def on_deleted(self, event: FileSystemEvent):
         """Handle file deletion events."""
-        if event.is_directory:
-            return  # We only track files, not directories
-
         absolute_path = str(Path(event.src_path).resolve())
 
         try:
             if FileEntry.delete_by_absolute_path(absolute_path):
-                print(f"Removed file from index: {absolute_path}")
+                print(f"Removed from index: {absolute_path}")
         except Exception as e:
-            print(f"Error removing file from index: {absolute_path}: {e}")
+            print(f"Error removing from index: {absolute_path}: {e}")
 
     def on_moved(self, event: FileSystemEvent):
         """Handle file move/rename events."""
-        if event.is_directory:
-            return  # We only track files, not directories
-
-        # Handle move as delete old + create new
         old_absolute_path = str(Path(event.src_path).resolve())
         new_absolute_path = str(Path(event.dest_path).resolve())
-
+        new_file_path = Path(new_absolute_path)
+        
         # Remove old entry
         try:
             FileEntry.delete_by_absolute_path(old_absolute_path)
-            print(f"Removed old file entry: {old_absolute_path}")
+            print(f"Removed old entry: {old_absolute_path}")
         except Exception as e:
-            print(f"Error removing old file entry: {old_absolute_path}: {e}")
+            print(f"Error removing old entry: {old_absolute_path}: {e}")
+
+        # If it was moved to a hidden destination, stop here
+        if self._is_hidden(new_file_path):
+            return
 
         # Add new entry if still within workspace
         new_relative_path = self._calculate_relative_path(new_absolute_path)
         if new_relative_path is not None:
-            file_path = Path(new_absolute_path)
-            file_type = self._get_file_type(file_path)
+            file_type = 'directory' if event.is_directory else self._get_file_type(new_file_path)
 
             try:
                 FileEntry.create(
@@ -147,18 +167,14 @@ class WorkspaceFileHandler(FileSystemEventHandler):
                     absolute_path=new_absolute_path,
                     file_type=file_type
                 )
-                print(f"Added moved file to index: {new_relative_path}")
+                print(f"Added moved entry to index: {new_relative_path}")
             except sqlite3.IntegrityError:
-                # File already exists in database
                 pass
             except Exception as e:
-                print(f"Error adding moved file to index: {new_absolute_path}: {e}")
+                print(f"Error adding moved entry to index: {new_absolute_path}: {e}")
 
     def on_modified(self, event: FileSystemEvent):
         """Handle file modification events."""
-        # Currently we don't update any metadata on modification
-        # The file_entry table doesn't have modification timestamps
-        # This method is here for future extensibility
         pass
 
 

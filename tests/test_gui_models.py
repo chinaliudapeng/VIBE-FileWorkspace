@@ -125,7 +125,7 @@ class TestFileTableModel(unittest.TestCase):
         self.assertEqual(self.model.data(index, Qt.DisplayRole), "src/main.py")
 
         index = self.model.index(0, FileTableModel.COL_FILE_TYPE)
-        self.assertEqual(self.model.data(index, Qt.DisplayRole), "python")
+        self.assertEqual(self.model.data(index, Qt.DisplayRole), "PYTHON")
 
         index = self.model.index(0, FileTableModel.COL_ABSOLUTE_PATH)
         self.assertEqual(self.model.data(index, Qt.DisplayRole), "/home/user/test/src/main.py")
@@ -133,6 +133,10 @@ class TestFileTableModel(unittest.TestCase):
         index = self.model.index(0, FileTableModel.COL_TAGS)
         # Tags column returns empty string for DisplayRole (custom delegate handles rendering)
         self.assertEqual(self.model.data(index, Qt.DisplayRole), "")
+
+        # Test second row data
+        index = self.model.index(1, FileTableModel.COL_FILE_TYPE)
+        self.assertEqual(self.model.data(index, Qt.DisplayRole), "MARKDOWN")
 
     @patch('core.scanner.FileEntry.get_files_for_workspace')
     def test_data_tooltip_role(self, mock_get_files):

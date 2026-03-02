@@ -46,10 +46,15 @@ class FileTableModel(QAbstractTableModel):
 
         if role == Qt.DisplayRole:
             if column == self.COL_RELATIVE_PATH:
+                # Format relative path - show it normally
                 return file_entry.relative_path
             elif column == self.COL_FILE_TYPE:
-                return file_entry.file_type
+                # File type
+                if file_entry.file_type == 'directory':
+                    return "Folder"
+                return file_entry.file_type.upper() if file_entry.file_type else 'FILE'
             elif column == self.COL_ABSOLUTE_PATH:
+                # Absolute path
                 return file_entry.absolute_path
             elif column == self.COL_TAGS:
                 # Tags are rendered by the custom delegate, not as text

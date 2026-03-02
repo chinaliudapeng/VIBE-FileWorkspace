@@ -248,12 +248,15 @@ class TestFilesystemScanner(unittest.TestCase):
 
         discovered = scanner._scan_directory(self.temp_path, self.temp_path)
 
-        # Should find 5 files total
-        self.assertEqual(len(discovered), 6)  # 6 files including single.txt
+        # Should find 7 items total (5 files + 2 directories inside the root)
+        # Note: root dir itself is skipped because current_dir == root_path
+        self.assertEqual(len(discovered), 8) 
 
         # Check specific files
         file_paths = {f['relative_path'] for f in discovered}
         expected_files = {
+            "subdir",
+            str(Path("subdir") / "deeper"),
             "file1.txt",
             "file2.py",
             "single.txt",
@@ -288,12 +291,12 @@ class TestFilesystemScanner(unittest.TestCase):
         scanner = FilesystemScanner(self.workspace.id)
         files_added = scanner.scan_workspace_paths()
 
-        # Should have added 6 files
-        self.assertEqual(files_added, 6)
+        # Should have added 8 files (6 files + 2 subdirectories)
+        self.assertEqual(files_added, 8)
 
         # Verify files are in database
         files = FileEntry.get_files_for_workspace(self.workspace.id)
-        self.assertEqual(len(files), 6)
+        self.assertEqual(len(files), 8)
 
         # Check that absolute paths are correctly set
         absolute_paths = {f.absolute_path for f in files}
@@ -330,12 +333,12 @@ class TestFilesystemScanner(unittest.TestCase):
         scanner = FilesystemScanner(self.workspace.id)
         files_added = scanner.scan_workspace_paths()
 
-        # Should have added 6 files from folder + 1 single file = 7 files
-        self.assertEqual(files_added, 7)
+        # Should have added 8 items from folder + 1 single file = 9 items
+        self.assertEqual(files_added, 9)
 
         # Verify files are in database
         files = FileEntry.get_files_for_workspace(self.workspace.id)
-        self.assertEqual(len(files), 7)
+        self.assertEqual(len(files), 9)
 
         # Clean up
         other_file.unlink()
@@ -360,15 +363,15 @@ class TestFilesystemScanner(unittest.TestCase):
 
         # First scan
         files_added1 = scanner.scan_workspace_paths()
-        self.assertEqual(files_added1, 6)
+        self.assertEqual(files_added1, 8)
 
         # Second scan should add 0 new files
         files_added2 = scanner.scan_workspace_paths()
         self.assertEqual(files_added2, 0)
 
-        # Still should have 6 files total
+        # Still should have 8 items total
         files = FileEntry.get_files_for_workspace(self.workspace.id)
-        self.assertEqual(len(files), 6)
+        self.assertEqual(len(files), 8)
 
     def test_rescan_workspace(self):
         """Test rescanning workspace to detect changes."""
@@ -379,7 +382,7 @@ class TestFilesystemScanner(unittest.TestCase):
 
         # Initial scan
         files_added = scanner.scan_workspace_paths()
-        self.assertEqual(files_added, 6)
+        self.assertEqual(files_added, 8)
 
         # Add a new file
         new_file = self.temp_path / "new_file.txt"
@@ -394,7 +397,7 @@ class TestFilesystemScanner(unittest.TestCase):
         # Should have removed 1 and added 1
         self.assertEqual(stats['removed'], 1)
         self.assertEqual(stats['added'], 1)
-        self.assertEqual(stats['total'], 6)  # Net change is 0
+        self.assertEqual(stats['total'], 8)  # Net change is 0
 
         # Clean up
         new_file.unlink()
@@ -406,8 +409,8 @@ class TestFilesystemScanner(unittest.TestCase):
 
         files_added = scan_workspace(self.workspace.id)
 
-        # Should have added 6 files
-        self.assertEqual(files_added, 6)
+        # Should have added 8 items
+        self.assertEqual(files_added, 8)
 
     def test_rescan_workspace_convenience_function(self):
         """Test the convenience function for rescanning."""

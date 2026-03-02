@@ -6,6 +6,7 @@ file_entry database table with discovered files.
 """
 
 import os
+import ctypes
 import sqlite3
 from pathlib import Path
 from typing import List, Optional, Dict, Any
@@ -396,9 +397,26 @@ class FilesystemScanner:
             return suffix[1:]  # Remove the dot
         return 'unknown'
 
+    def _is_hidden(self, path: Path) -> bool:
+        """Check if a file or directory is hidden."""
+        # Check if any part of the path starts with a dot
+        if any(part.startswith('.') for part in path.parts):
+            return True
+            
+        # Check Windows hidden attribute
+        if os.name == 'nt':
+            try:
+                attrs = ctypes.windll.kernel32.GetFileAttributesW(str(path))
+                if attrs != -1 and bool(attrs & 2):  # FILE_ATTRIBUTE_HIDDEN = 2
+                    return True
+            except Exception:
+                pass
+                
+        return False
+
     def _scan_directory(self, directory_path: Path, root_path: Path) -> List[Dict[str, str]]:
         """
-        Recursively scan a directory for files.
+        Recursively scan a directory for files and directories, skipping hidden ones.
 
         Args:
             directory_path: Directory to scan
@@ -410,13 +428,37 @@ class FilesystemScanner:
         discovered_files = []
 
         try:
-            for item in directory_path.rglob('*'):
-                if item.is_file():
+            # We use os.walk instead of rglob to allow modifying dirnames in-place to skip hidden directories
+            for root, dirs, files in os.walk(directory_path):
+                current_dir = Path(root)
+                
+                # Filter out hidden directories so os.walk doesn't descend into them
+                dirs[:] = [d for d in dirs if not self._is_hidden(current_dir / d)]
+                
+                # Check if the current directory itself is hidden or is exactly the root 
+                # (we optionally index the root folder, but commonly just children)
+                if current_dir != root_path and not self._is_hidden(current_dir):
                     try:
-                        # Calculate relative path from the root
-                        relative_path = item.relative_to(root_path)
-                        absolute_path = str(item.resolve())
-                        file_type = self._get_file_type(item)
+                        relative_path = current_dir.relative_to(root_path)
+                        absolute_path = str(current_dir.resolve())
+                        discovered_files.append({
+                            'relative_path': str(relative_path),
+                            'absolute_path': absolute_path,
+                            'file_type': 'directory'
+                        })
+                    except (OSError, ValueError) as e:
+                        print(f"Warning: Could not process directory {current_dir}: {e}")
+
+                # Process files
+                for f in files:
+                    file_path = current_dir / f
+                    if self._is_hidden(file_path):
+                        continue
+                        
+                    try:
+                        relative_path = file_path.relative_to(root_path)
+                        absolute_path = str(file_path.resolve())
+                        file_type = self._get_file_type(file_path)
 
                         discovered_files.append({
                             'relative_path': str(relative_path),
@@ -424,9 +466,7 @@ class FilesystemScanner:
                             'file_type': file_type
                         })
                     except (OSError, ValueError) as e:
-                        # Skip files we can't access or process
-                        print(f"Warning: Could not process file {item}: {e}")
-                        continue
+                        print(f"Warning: Could not process file {file_path}: {e}")
 
         except (OSError, PermissionError) as e:
             print(f"Warning: Could not access directory {directory_path}: {e}")
@@ -435,7 +475,7 @@ class FilesystemScanner:
 
     def _scan_single_file(self, file_path: Path, root_path: Path) -> List[Dict[str, str]]:
         """
-        Scan a single file.
+        Scan a single file, skipping it if hidden.
 
         Args:
             file_path: File to scan
@@ -448,6 +488,9 @@ class FilesystemScanner:
 
         try:
             if file_path.exists() and file_path.is_file():
+                if self._is_hidden(file_path):
+                    return []
+                    
                 # For single files, the relative path is just the filename
                 relative_path = file_path.name
                 absolute_path = str(file_path.resolve())

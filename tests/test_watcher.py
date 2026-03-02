@@ -127,22 +127,25 @@ class TestWorkspaceFileHandler:
             assert file_entry.file_type == 'py'
             assert file_entry.relative_path == 'test.py'
 
-    def test_on_created_directory_ignored(self, handler, temp_db):
-        """Test that directory creation events are ignored."""
+    def test_on_created_directory(self, handler, temp_db):
+        """Test that directory creation events are processed as directory entries."""
         handler_obj, temp_dir, workspace = handler
 
         with patch('core.db.get_db_path', return_value=temp_db):
             # Create directory event
             test_dir = os.path.join(temp_dir, 'newdir')
+            os.makedirs(test_dir, exist_ok=True)
             event = FileCreatedEvent(test_dir)
             event.is_directory = True
 
             # Handle the event
             handler_obj.on_created(event)
 
-            # Verify no file entry was created
+            # Verify directory entry was created
             file_entry = FileEntry.get_by_absolute_path(str(Path(test_dir).resolve()))
-            assert file_entry is None
+            assert file_entry is not None
+            assert file_entry.relative_path == 'newdir'
+            assert file_entry.file_type == 'directory'
 
     def test_on_deleted_file(self, handler, temp_db):
         """Test file deletion event handling."""
@@ -171,6 +174,31 @@ class TestWorkspaceFileHandler:
 
             # Verify file was removed from database
             file_entry = FileEntry.get_by_absolute_path(str(Path(test_file).resolve()))
+            assert file_entry is None
+
+    def test_on_deleted_directory(self, handler, temp_db):
+        """Test that directory deletion events process deletion."""
+        handler_obj, temp_dir, workspace = handler
+
+        with patch('core.db.get_db_path', return_value=temp_db):
+            # Create a directory in DB first
+            test_dir = os.path.join(temp_dir, 'deldir')
+            FileEntry.create(
+                workspace_id=workspace.id,
+                relative_path='deldir',
+                absolute_path=str(Path(test_dir).resolve()),
+                file_type='directory'
+            )
+
+            # Create directory deleted event
+            event = FileDeletedEvent(test_dir)
+            event.is_directory = True
+
+            # Handle the event
+            handler_obj.on_deleted(event)
+
+            # Verify it's removed
+            file_entry = FileEntry.get_by_absolute_path(str(Path(test_dir).resolve()))
             assert file_entry is None
 
     def test_on_moved_file(self, handler, temp_db):
