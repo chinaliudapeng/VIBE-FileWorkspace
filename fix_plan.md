@@ -75,10 +75,10 @@
 - [x] Add directories to the workspace file view (currently only files are shown).
 - [x] Ensure that hidden files and hidden folders (e.g., matching `.*` or having the Windows Hidden attribute) are excluded from the indexer and are not displayed.
 
-## Bug Fixes 0003
-- [ ] Issue: Right-side list does not show any files after generating or updating a workspace.
-- [ ] Cause: `core.scanner.scan_workspace` is never invoked after a user adds a workspace path in `gui/dialogs.py`. Furthermore, `core.watcher.FilesystemWatcher` might not be initiated/managed by `MainWindow` when switching workspaces.
-- [ ] Resolution Plan:
+## Bug Fixes 0003 ✅ COMPLETED
+- [x] Issue: Right-side list does not show any files after generating or updating a workspace.
+- [x] Cause: `core.scanner.scan_workspace` is never invoked after a user adds a workspace path in `gui/dialogs.py`. Furthermore, `core.watcher.FilesystemWatcher` might not be initiated/managed by `MainWindow` when switching workspaces.
+- [x] Resolution Plan:
   - [x] 1. Import and run `scan_workspace(workspace_id)` when completing existing workspace creation/edit sequences in `gui/main_window.py` or `gui/dialogs.py`.
-  - [ ] 2. Manage a persistent `FilesystemWatcher` instance in `MainWindow` to watch added directories dynamically.
-- [ ] Commit Git.
+  - [x] 2. Manage a persistent `FilesystemWatcher` instance in `MainWindow` to watch added directories dynamically.
+- [x] Commit Git.
