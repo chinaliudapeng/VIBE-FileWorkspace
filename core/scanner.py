@@ -322,14 +322,14 @@ class FileEntry:
                 cursor.execute('''
                     SELECT id, workspace_id, relative_path, absolute_path, file_type
                     FROM file_entry
-                    WHERE workspace_id = ? AND (relative_path LIKE ? OR absolute_path LIKE ?)
+                    WHERE workspace_id = ? AND (LOWER(relative_path) LIKE LOWER(?) OR LOWER(absolute_path) LIKE LOWER(?))
                     ORDER BY relative_path ASC
                 ''', (workspace_id, f'%{keyword}%', f'%{keyword}%'))
             else:
                 cursor.execute('''
                     SELECT id, workspace_id, relative_path, absolute_path, file_type
                     FROM file_entry
-                    WHERE relative_path LIKE ? OR absolute_path LIKE ?
+                    WHERE LOWER(relative_path) LIKE LOWER(?) OR LOWER(absolute_path) LIKE LOWER(?)
                     ORDER BY relative_path ASC
                 ''', (f'%{keyword}%', f'%{keyword}%'))
 
@@ -382,7 +382,7 @@ class FileEntry:
 
             # Build the WHERE conditions for LIKE queries
             for tag_name in tag_names:
-                like_conditions.append('t.tag_name LIKE ?')
+                like_conditions.append('LOWER(t.tag_name) LIKE LOWER(?)')
                 params.append(f'%{tag_name}%')
 
             like_clause = ' OR '.join(like_conditions)
@@ -456,7 +456,7 @@ class FileEntry:
                     FROM file_entry fe
                     INNER JOIN tags t ON fe.id = t.file_id
                     WHERE fe.workspace_id = ?
-                    AND (fe.relative_path LIKE ? OR fe.absolute_path LIKE ?)
+                    AND (LOWER(fe.relative_path) LIKE LOWER(?) OR LOWER(fe.absolute_path) LIKE LOWER(?))
                     AND t.tag_name IN ({placeholders})
                     ORDER BY fe.relative_path ASC
                 '''
@@ -466,7 +466,7 @@ class FileEntry:
                     SELECT DISTINCT fe.id, fe.workspace_id, fe.relative_path, fe.absolute_path, fe.file_type
                     FROM file_entry fe
                     INNER JOIN tags t ON fe.id = t.file_id
-                    WHERE (fe.relative_path LIKE ? OR fe.absolute_path LIKE ?)
+                    WHERE (LOWER(fe.relative_path) LIKE LOWER(?) OR LOWER(fe.absolute_path) LIKE LOWER(?))
                     AND t.tag_name IN ({placeholders})
                     ORDER BY fe.relative_path ASC
                 '''

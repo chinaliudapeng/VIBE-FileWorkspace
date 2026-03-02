@@ -252,6 +252,63 @@ class TestFileEntry(unittest.TestCase):
         files = FileEntry.search_by_tags([])
         self.assertEqual(len(files), 0)
 
+    def test_search_by_keyword_case_insensitive(self):
+        """Test keyword search functionality with case-insensitive matching."""
+        # Create test files
+        file1 = FileEntry.create(
+            workspace_id=self.workspace.id,
+            relative_path="MyProject/Main.py",
+            absolute_path="/absolute/MyProject/Main.py",
+            file_type="py"
+        )
+        file2 = FileEntry.create(
+            workspace_id=self.workspace.id,
+            relative_path="src/UTILS.py",
+            absolute_path="/absolute/src/UTILS.py",
+            file_type="py"
+        )
+        file3 = FileEntry.create(
+            workspace_id=self.workspace.id,
+            relative_path="docs/ReadMe.md",
+            absolute_path="/absolute/docs/ReadMe.md",
+            file_type="md"
+        )
+
+        # Create another workspace with a file
+        other_workspace = Workspace.create("Other Workspace")
+        file4 = FileEntry.create(
+            workspace_id=other_workspace.id,
+            relative_path="other/PROJECT.py",
+            absolute_path="/absolute/other/PROJECT.py",
+            file_type="py"
+        )
+
+        # Test case-insensitive keyword search in relative path
+        files = FileEntry.search_by_keyword("project")
+        self.assertEqual(len(files), 2)  # file1 (MyProject) and file4 (PROJECT)
+        file_ids = [f.id for f in files]
+        self.assertIn(file1.id, file_ids)
+        self.assertIn(file4.id, file_ids)
+
+        # Test case-insensitive keyword search in absolute path
+        files = FileEntry.search_by_keyword("MAIN")
+        self.assertEqual(len(files), 1)  # file1 (Main.py)
+        self.assertEqual(files[0].id, file1.id)
+
+        # Test case-insensitive search with workspace filter
+        files = FileEntry.search_by_keyword("utils", workspace_id=self.workspace.id)
+        self.assertEqual(len(files), 1)  # Only file2 in test workspace
+        self.assertEqual(files[0].id, file2.id)
+
+        # Test mixed case search
+        files = FileEntry.search_by_keyword("ReAdMe")
+        self.assertEqual(len(files), 1)  # file3 (ReadMe.md)
+        self.assertEqual(files[0].id, file3.id)
+
+        # Test non-matching search
+        files = FileEntry.search_by_keyword("nonexistent")
+        self.assertEqual(len(files), 0)
+
 
 class TestFilesystemScanner(unittest.TestCase):
     """Test cases for the FilesystemScanner."""

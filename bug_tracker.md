@@ -25,3 +25,11 @@ Update the status with [x] when completed.
 - [x] Investigate workspace rename functionality failure ✅ COMPLETED
 - [x] Run comprehensive tests after fixes ✅ COMPLETED
 - [x] Git commit and push ✅ COMPLETED
+
+## Bug 202603030003 - Search Functionality Missing Spec Requirements (HIGH PRIORITY) ✅ COMPLETED
+- [x] Fix case-insensitive search - currently using case-sensitive LIKE operator in SQLite queries (spec.md line 40 requirement) ✅ COMPLETED
+- [x] Fix multiple keywords search - currently only uses first keyword despite parsing all keywords correctly ✅ COMPLETED
+- [x] Update search methods in core/scanner.py to use LOWER() function for case-insensitive matching ✅ COMPLETED
+- [x] Update GUI search handler in gui/main_window.py to process all parsed keywords, not just the first one ✅ COMPLETED
+- [x] Run comprehensive tests after fixes to ensure case-insensitive search works correctly ✅ COMPLETED
+- [x] Git commit and push ✅ COMPLETED
