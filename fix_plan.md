@@ -125,3 +125,17 @@
   - Real-world test with 5 test files confirmed all files appear in the right-side file list
 - [x] Resolution: The reported issue appears to have been resolved in previous commits. GUI file display works correctly after workspace creation.
 - [x] Commit Git.
+
+## Feature Requests 002 ✅ COMPLETED
+- [x] 设置右侧文件列表界面的列为水平大小可拖拽进行调整. (Set the columns of the right-side file list interface to be horizontally draggable for size adjustment)
+- [x] Resolution: Modified `create_file_table()` method in `gui/main_window.py` to use `QHeaderView.Interactive` resize mode instead of fixed modes (ResizeToContents, Stretch), enabling manual column resizing by dragging column boundaries. Set reasonable default widths (250, 100, 350, 200 pixels) and enabled last section stretching.
+- [x] Verification: All GUI tests pass (16/16 model tests, 10/10 integration tests). Column headers now support drag-to-resize functionality.
+- [x] Commit Git.
+
+## Feature Requests 003
+- [ ] 调整Workspace的编辑面板的remove按钮大小,现阶段remove文本显示不全.
+- [ ] Commit Git.
+
+## Feature Requests 004
+- [ ] 右键通用功能加一个以当前路径所在的路径打开终端,macOS和Windows系统都要支持.
+- [ ] Commit Git.

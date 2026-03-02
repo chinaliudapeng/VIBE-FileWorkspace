@@ -433,12 +433,18 @@ class MainWindow(QMainWindow):
         tag_delegate = TagPillDelegate(table)
         table.setItemDelegateForColumn(FileTableModel.COL_TAGS, tag_delegate)
 
-        # Configure column widths
+        # Configure column widths - allow manual resizing (Interactive mode)
         header = table.horizontalHeader()
-        header.setSectionResizeMode(FileTableModel.COL_RELATIVE_PATH, QHeaderView.ResizeToContents)
-        header.setSectionResizeMode(FileTableModel.COL_FILE_TYPE, QHeaderView.ResizeToContents)
-        header.setSectionResizeMode(FileTableModel.COL_ABSOLUTE_PATH, QHeaderView.Stretch)
-        header.setSectionResizeMode(FileTableModel.COL_TAGS, QHeaderView.ResizeToContents)
+        header.setSectionResizeMode(QHeaderView.Interactive)
+
+        # Set reasonable default column widths
+        header.resizeSection(FileTableModel.COL_RELATIVE_PATH, 250)
+        header.resizeSection(FileTableModel.COL_FILE_TYPE, 100)
+        header.resizeSection(FileTableModel.COL_ABSOLUTE_PATH, 350)
+        header.resizeSection(FileTableModel.COL_TAGS, 200)
+
+        # Allow the last section to stretch if window is resized
+        header.setStretchLastSection(True)
 
         # Configure vertical header
         table.verticalHeader().setVisible(False)
