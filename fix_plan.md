@@ -132,9 +132,11 @@
 - [x] Verification: All GUI tests pass (16/16 model tests, 10/10 integration tests). Column headers now support drag-to-resize functionality.
 - [x] Commit Git.
 
-## Feature Requests 003
-- [ ] 调整Workspace的编辑面板的remove按钮大小,现阶段remove文本显示不全.
-- [ ] Commit Git.
+## Feature Requests 003 ✅ COMPLETED
+- [x] 调整Workspace的编辑面板的remove按钮大小,现阶段remove文本显示不全. (Adjust the size of the remove button in the Workspace editing panel, as the "Remove" text is not fully displayed currently.)
+- [x] Resolution: Updated WorkspaceDialog to set minimum width of 80px for remove buttons and increased CSS padding from `4px 8px` to `6px 12px` with `min-width: 70px`. The combination results in actual button width of 94px, providing comfortable space for "Remove" text (46px needed).
+- [x] Testing: Created and ran test to verify remove button sizing. All 159 existing tests continue to pass.
+- [x] Commit Git.
 
 ## Feature Requests 004
 - [ ] 右键通用功能加一个以当前路径所在的路径打开终端,macOS和Windows系统都要支持.

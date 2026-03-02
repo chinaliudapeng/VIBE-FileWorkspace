@@ -30,7 +30,7 @@ To support a workspace containing multiple directories or specific files, the sc
     - Input: A List/Table of paths belonging to this Workspace.
     - Action: "Add Folder" button (opens OS directory picker)
     - Action: "Add File" button (opens OS file picker)
-    - Action: "Remove" button next to each added path in the list.
+    - Action: "Remove" button next to each added path in the list (button text should display fully without being cut off).
     - Action: Save / Cancel
 - **Middle Separator**
   - `QSplitter` to allow resizing the left and right areas dynamically.
@@ -41,6 +41,7 @@ To support a workspace containing multiple directories or specific files, the sc
 - **Right Area (Bottom)**
   - Implemented using `QTreeView` or `QTableView` with a `QAbstractTableModel` for lazy-loading/performance.
   - Displays: File Icon, Relative/Absolute Path, Tags.
+  - The columns in the file list must be horizontally adjustable (resizable via dragging) by the user.
   - Checked boxes next to paths for batch operations.
   - **Tags UI**: Rendered as visually distinct pills/badges (colored background, rounded corners, padding) via custom PySide6 delegate.
 - **Context Menu (Right Area)**
@@ -52,6 +53,7 @@ To support a workspace containing multiple directories or specific files, the sc
       - Action: Apply / Cancel
   - Open File (Using system default application)
   - Reveal in Explorer/Finder
+  - Open in Terminal (Opens the system terminal at the file's current path, supporting macOS and Windows)
   - Copy File Path
   - Delete File (Move to Recycle Bin via `send2trash` or similar)
   - Remove from Workspace (Removes index entry, does not delete actual file)
