@@ -23,6 +23,8 @@ class FileTableModel(QAbstractTableModel):
         self._files: List[FileEntry] = []
         self._workspace_id: Optional[int] = None
         self._headers = ["Relative Path", "File Type", "Absolute Path", "Tags"]
+        self._sort_column = -1
+        self._sort_order = Qt.AscendingOrder
 
     def rowCount(self, parent: QModelIndex = QModelIndex()) -> int:
         """Return the number of rows (files) in the model."""
@@ -158,3 +160,64 @@ class FileTableModel(QAbstractTableModel):
         self.beginResetModel()
         self._files = files
         self.endResetModel()
+
+    def sort(self, column: int, order: Qt.SortOrder = Qt.AscendingOrder) -> None:
+        """
+        Sort the table data by the specified column.
+
+        Args:
+            column: The column index to sort by
+            order: Qt.AscendingOrder or Qt.DescendingOrder
+        """
+        if not self._files or column < 0 or column >= len(self._headers):
+            return
+
+        self._sort_column = column
+        self._sort_order = order
+
+        self.layoutAboutToBeChanged.emit()
+
+        # Define sort key functions for each column
+        if column == self.COL_RELATIVE_PATH:
+            # Sort by relative path, directories first
+            def sort_key(file_entry: FileEntry) -> tuple:
+                is_dir = file_entry.file_type == 'directory'
+                return (not is_dir, file_entry.relative_path.lower())
+
+        elif column == self.COL_FILE_TYPE:
+            # Sort by file type, directories first, then alphabetically by type
+            def sort_key(file_entry: FileEntry) -> tuple:
+                if file_entry.file_type == 'directory':
+                    return (0, 'directory')
+                file_type = file_entry.file_type or 'unknown'
+                return (1, file_type.lower())
+
+        elif column == self.COL_ABSOLUTE_PATH:
+            # Sort by absolute path, directories first
+            def sort_key(file_entry: FileEntry) -> tuple:
+                is_dir = file_entry.file_type == 'directory'
+                return (not is_dir, file_entry.absolute_path.lower())
+
+        elif column == self.COL_TAGS:
+            # Sort by number of tags, then alphabetically by first tag name
+            def sort_key(file_entry: FileEntry) -> tuple:
+                try:
+                    tags = Tag.get_tags_for_file(file_entry.id)
+                    if not tags:
+                        return (0, '')  # Files with no tags come first
+                    tag_names = [tag.tag_name for tag in tags]
+                    tag_names.sort()
+                    return (len(tags), tag_names[0].lower())
+                except Exception:
+                    return (0, '')  # Handle any database errors gracefully
+
+        else:
+            # Default sort by relative path
+            def sort_key(file_entry: FileEntry) -> tuple:
+                return (file_entry.relative_path.lower(),)
+
+        # Sort the files
+        reverse = (order == Qt.DescendingOrder)
+        self._files.sort(key=sort_key, reverse=reverse)
+
+        self.layoutChanged.emit()
