@@ -7,6 +7,8 @@ for the core data layer.
 
 import sqlite3
 import os
+import sys
+import shutil
 from pathlib import Path
 from datetime import datetime
 from .logging_config import get_logger
@@ -14,12 +16,82 @@ from .logging_config import get_logger
 logger = get_logger('db')
 
 
+def _get_application_root():
+    """Get the root directory of the application."""
+    if getattr(sys, 'frozen', False):
+        # Running as a PyInstaller executable
+        return Path(sys.executable).parent
+    else:
+        # Running from source code (development mode)
+        # Find the project root by looking for the main script files
+        current_dir = Path(__file__).parent
+        project_root = current_dir.parent  # Go up from core/ to project root
+        return project_root
+
+
+def _get_legacy_db_path():
+    """Get the legacy database path (user home directory)."""
+    data_dir = Path.home() / '.workspace_indexer'
+    return data_dir / 'workspace_indexer.db'
+
+
 def get_db_path():
     """Get the path to the SQLite database file."""
-    # Create a data directory in the user's home directory
-    data_dir = Path.home() / '.workspace_indexer'
-    data_dir.mkdir(exist_ok=True)
-    return data_dir / 'workspace_indexer.db'
+    app_root = _get_application_root()
+
+    if getattr(sys, 'frozen', False):
+        # Running as executable: use .db directory next to exe
+        data_dir = app_root / '.db'
+        data_dir.mkdir(exist_ok=True)
+        new_db_path = data_dir / 'workspace_indexer.db'
+
+        # Check if migration is needed from legacy location
+        legacy_db_path = _get_legacy_db_path()
+        if legacy_db_path.exists() and not new_db_path.exists():
+            _migrate_database_from_legacy(legacy_db_path, new_db_path)
+
+        return new_db_path
+    else:
+        # Running from source: use legacy location for development
+        data_dir = Path.home() / '.workspace_indexer'
+        data_dir.mkdir(exist_ok=True)
+        return data_dir / 'workspace_indexer.db'
+
+
+def _migrate_database_from_legacy(legacy_path, new_path):
+    """Migrate database from legacy location to new location."""
+    try:
+        logger.info(f"Migrating database from {legacy_path} to {new_path}")
+
+        # Ensure target directory exists
+        new_path.parent.mkdir(exist_ok=True)
+
+        # Copy the database file
+        shutil.copy2(legacy_path, new_path)
+        logger.info(f"Database migrated successfully to {new_path}")
+
+        # Verify the migration worked by testing a connection
+        test_conn = sqlite3.connect(str(new_path))
+        test_conn.execute('PRAGMA foreign_keys = ON')
+        test_conn.close()
+        logger.info("Migration verification successful")
+
+        # Remove the legacy database and directory if possible
+        try:
+            legacy_path.unlink()
+            logger.info(f"Removed legacy database file: {legacy_path}")
+
+            # Try to remove the legacy directory if it's empty
+            legacy_dir = legacy_path.parent
+            if legacy_dir.exists() and not any(legacy_dir.iterdir()):
+                legacy_dir.rmdir()
+                logger.info(f"Removed empty legacy directory: {legacy_dir}")
+        except OSError as e:
+            logger.warning(f"Could not remove legacy database files: {e}")
+
+    except Exception as e:
+        logger.error(f"Error migrating database from {legacy_path} to {new_path}: {e}")
+        raise
 
 
 def get_connection():

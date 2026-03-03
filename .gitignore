@@ -9,4 +9,12 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# Temp and logs
+.claude/
+claude_thoughts.log
+.pytest_cache/
+6.0.0 -ForegroundColor Yellow
+=6.0.0
+test_error_case_snapshot/
+
 run_ralph.sh

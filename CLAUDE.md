@@ -25,7 +25,7 @@ python -m pytest tests/test_models_workspace.py::TestWorkspaceModel::test_create
 ### Build standalone executables
 ```bash
 python build.py               # Cross-platform (creates dist/)
-.\build_windows.ps1 -Clean    # Windows PowerShell
+.\build_windows.bat --clean   # Windows Batch Script
 ./build_mac.sh                # macOS
 ```
 
@@ -42,7 +42,8 @@ The application is split into three layers, all sharing the same SQLite database
 core/    ← Single source of truth; GUI and CLI both import from here only
 gui/     ← PySide6 interface; never accesses DB directly
 cli/     ← Click-based interface; never accesses DB directly
-tests/   ← pytest suite (~160 tests)
+tests/   ← pytest suite
+specs/   ← Project specifications, feature requests, and bug trackers
 ```
 
 ### Core Layer (`core/`)

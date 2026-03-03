@@ -38,4 +38,9 @@ Update the status with [x] when completed.
 - [x] Fix remaining print() statement in gui/dialogs.py:573 that violates logging consistency established in Bug 202603030001 ✅ COMPLETED
 - [x] Review and ensure all error messages use appropriate logger levels instead of print() statements ✅ COMPLETED
 - [x] Run comprehensive tests to ensure logging changes don't break functionality ✅ COMPLETED
-- [ ] Git commit and push
+- [x] Git commit and push ✅ COMPLETED
+
+## Bug 202603031129 ✅ COMPLETED
+- [x] Workspace编辑面板内remove按钮与忽略列表的文本看不全,需要调整按钮的大小与文本距离边缘的样式,避免文本看不到. ✅ COMPLETED
+- [x] 自行测试 ✅ COMPLETED
+- [x] Git commit and push ✅ COMPLETED

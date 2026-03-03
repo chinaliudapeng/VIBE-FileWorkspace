@@ -16,7 +16,7 @@ from unittest.mock import patch
 import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-from core.db import initialize_database, verify_database, get_connection, get_db_path
+from core.db import initialize_database, verify_database, get_connection, get_db_path, _get_application_root, _migrate_database_from_legacy
 
 
 class TestDatabaseInitialization:
@@ -237,3 +237,125 @@ class TestDatabaseInitialization:
 
         # Verification should fail
         assert verify_database() is False
+
+
+class TestDatabaseMigration:
+    """Test database migration functionality."""
+
+    def setup_method(self):
+        """Setup for each test method."""
+        # Use temporary directories for tests
+        self.test_dir = tempfile.mkdtemp()
+        self.legacy_db_path = Path(self.test_dir) / 'legacy' / 'workspace_indexer.db'
+        self.new_db_path = Path(self.test_dir) / 'new' / 'workspace_indexer.db'
+
+        # Create directories
+        self.legacy_db_path.parent.mkdir(parents=True, exist_ok=True)
+        self.new_db_path.parent.mkdir(parents=True, exist_ok=True)
+
+    def teardown_method(self):
+        """Cleanup after each test method."""
+        # Remove test directories
+        import shutil
+        shutil.rmtree(self.test_dir)
+
+    def test_migrate_database_from_legacy(self):
+        """Test successful database migration."""
+        # Create a legacy database with some data
+        conn = sqlite3.connect(str(self.legacy_db_path))
+        conn.execute('CREATE TABLE test_table (id INTEGER, name TEXT)')
+        conn.execute('INSERT INTO test_table VALUES (1, "test")')
+        conn.commit()
+        conn.close()
+
+        # Migrate the database
+        _migrate_database_from_legacy(self.legacy_db_path, self.new_db_path)
+
+        # Verify migration worked
+        assert self.new_db_path.exists()
+
+        # Check data was copied correctly
+        conn = sqlite3.connect(str(self.new_db_path))
+        cursor = conn.cursor()
+        cursor.execute('SELECT * FROM test_table')
+        rows = cursor.fetchall()
+        conn.close()
+
+        assert len(rows) == 1
+        assert rows[0] == (1, 'test')
+
+    def test_migrate_database_removes_legacy_file(self):
+        """Test that legacy database file is removed after successful migration."""
+        # Create a legacy database
+        conn = sqlite3.connect(str(self.legacy_db_path))
+        conn.execute('CREATE TABLE test_table (id INTEGER)')
+        conn.close()
+
+        # Migrate the database
+        _migrate_database_from_legacy(self.legacy_db_path, self.new_db_path)
+
+        # Verify legacy file is removed
+        assert not self.legacy_db_path.exists()
+        assert self.new_db_path.exists()
+
+    @patch('sys.frozen', True, create=True)
+    @patch('sys.executable')
+    def test_get_db_path_executable_mode(self, mock_executable):
+        """Test database path in executable mode."""
+        # Mock the executable path
+        exe_dir = Path(self.test_dir) / 'exe_dir'
+        exe_dir.mkdir()
+        mock_executable = str(exe_dir / 'app.exe')
+
+        # Mock sys.executable to return our test path
+        with patch('sys.executable', mock_executable):
+            db_path = get_db_path()
+            expected_path = exe_dir / '.db' / 'workspace_indexer.db'
+            assert db_path == expected_path
+
+    @patch('sys.frozen', False, create=True)
+    def test_get_db_path_development_mode(self):
+        """Test database path in development mode (running from source)."""
+        with patch('pathlib.Path.home') as mock_home:
+            mock_home.return_value = Path(self.test_dir) / 'home'
+            mock_home.return_value.mkdir()
+
+            db_path = get_db_path()
+            expected_path = mock_home.return_value / '.workspace_indexer' / 'workspace_indexer.db'
+            assert db_path == expected_path
+
+    @patch('sys.frozen', True, create=True)
+    @patch('sys.executable')
+    def test_get_db_path_with_migration(self, mock_executable):
+        """Test database path with automatic migration from legacy location."""
+        exe_dir = Path(self.test_dir) / 'exe_dir'
+        exe_dir.mkdir()
+        mock_executable = str(exe_dir / 'app.exe')
+
+        # Create a legacy database
+        legacy_dir = Path(self.test_dir) / 'legacy_home' / '.workspace_indexer'
+        legacy_dir.mkdir(parents=True)
+        legacy_db = legacy_dir / 'workspace_indexer.db'
+
+        conn = sqlite3.connect(str(legacy_db))
+        conn.execute('CREATE TABLE test_table (id INTEGER)')
+        conn.close()
+
+        with patch('sys.executable', mock_executable):
+            with patch('core.db._get_legacy_db_path', return_value=legacy_db):
+                db_path = get_db_path()
+
+                # Should return new path
+                expected_path = exe_dir / '.db' / 'workspace_indexer.db'
+                assert db_path == expected_path
+
+                # New database should exist and contain data
+                assert expected_path.exists()
+
+                conn = sqlite3.connect(str(expected_path))
+                cursor = conn.cursor()
+                cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
+                tables = cursor.fetchall()
+                conn.close()
+
+                assert len(tables) >= 1  # Should have at least the test_table
