@@ -40,7 +40,7 @@
 - [x] Implement the Table/Tree View in the bottom right area and connect it to the custom Model.
 - [x] Implement the Top Right Area with a Search Input box and Clear button.
 - [x] Connect the Search Input to the Model/Database to filter the displayed files dynamically.
-- [ ] Commit Git.
+- [x] Commit Git.
 ## Phase 7: ✅ COMPLETED
 **Phase 7 is now fully completed with comprehensive file table view and dynamic search functionality.**
 
