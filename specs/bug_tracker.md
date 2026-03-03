@@ -56,3 +56,4 @@ Update the status with [x] when completed.
 - [x] Workspace编辑面板内remove按钮超出行高了,需要你自行调整到适配行高的大小,但也要避免文本显示不全. ✅ COMPLETED
 - [x] 自行测试 ✅ COMPLETED
 - [x] Git commit and push ✅ COMPLETED
+ 

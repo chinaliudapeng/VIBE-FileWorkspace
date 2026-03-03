@@ -19,7 +19,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from core.models import Workspace, WorkspacePath, Tag
 from core.scanner import FileEntry
-from core.db import get_connection
+from core.db import get_connection, ensure_database_initialized
 
 
 def output_json(data: Any, error: bool = False) -> None:
@@ -54,7 +54,11 @@ def cli():
     across multiple workspaces. Operates on the same SQLite database as
     the GUI application.
     """
-    pass
+    # Ensure database is initialized before any CLI commands
+    try:
+        ensure_database_initialized()
+    except Exception as e:
+        handle_error(f"Failed to initialize database: {str(e)}")
 
 
 @cli.command()

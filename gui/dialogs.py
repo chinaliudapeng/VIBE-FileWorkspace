@@ -8,7 +8,8 @@ from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QFormLayout,
     QLineEdit, QPushButton, QTableWidget, QTableWidgetItem,
     QHeaderView, QMessageBox, QFileDialog, QLabel, QWidget,
-    QCompleter, QScrollArea, QFrame, QSizePolicy, QApplication
+    QCompleter, QScrollArea, QFrame, QSizePolicy, QApplication,
+    QTextEdit, QDialogButtonBox
 )
 from PySide6.QtCore import Qt, QSize, QStringListModel, QTimer
 from PySide6.QtGui import QFont, QIcon, QPalette, QPainter, QFontMetrics
@@ -564,6 +565,93 @@ class TagPillWidget(QWidget):
         return brightness < 128
 
 
+class MultiLineTextDialog(QDialog):
+    """Dialog for editing multi-line text content."""
+
+    def __init__(self, parent=None, title="Edit Text", label="Enter text:", text=""):
+        super().__init__(parent)
+        self.setWindowTitle(title)
+        self.setModal(True)
+        self.setMinimumSize(QSize(500, 300))
+        self.resize(600, 400)
+
+        # Main layout
+        main_layout = QVBoxLayout(self)
+        main_layout.setSpacing(15)
+        main_layout.setContentsMargins(20, 20, 20, 20)
+
+        # Label
+        if label:
+            label_widget = QLabel(label)
+            label_widget.setObjectName("dialogLabel")
+            main_layout.addWidget(label_widget)
+
+        # Text edit widget
+        self.text_edit = QTextEdit()
+        self.text_edit.setObjectName("multiLineTextEdit")
+        self.text_edit.setPlainText(text)
+        self.text_edit.setFont(QFont("Consolas", 10))  # Monospace font for regex patterns
+        main_layout.addWidget(self.text_edit, 1)  # Expand to fill space
+
+        # Button box
+        button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        button_box.accepted.connect(self.accept)
+        button_box.rejected.connect(self.reject)
+        main_layout.addWidget(button_box)
+
+        # Apply theme styling
+        self.apply_dialog_theme()
+
+    def apply_dialog_theme(self):
+        """Apply dark theme styling to the dialog."""
+        self.setStyleSheet("""
+            MultiLineTextDialog {
+                background-color: #2d2d2d;
+                color: #ffffff;
+            }
+            QLabel#dialogLabel {
+                color: #ffffff;
+                font-weight: bold;
+                font-size: 12px;
+                margin-bottom: 5px;
+            }
+            QTextEdit#multiLineTextEdit {
+                background-color: #3c3c3c;
+                color: #ffffff;
+                border: 2px solid #555555;
+                border-radius: 6px;
+                padding: 8px;
+                selection-background-color: #0078d4;
+                selection-color: #ffffff;
+            }
+            QTextEdit#multiLineTextEdit:focus {
+                border-color: #0078d4;
+            }
+            QDialogButtonBox {
+                background-color: transparent;
+            }
+            QPushButton {
+                background-color: #0078d4;
+                color: white;
+                border: none;
+                padding: 8px 16px;
+                border-radius: 4px;
+                font-weight: bold;
+                min-width: 70px;
+            }
+            QPushButton:hover {
+                background-color: #106ebe;
+            }
+            QPushButton:pressed {
+                background-color: #005a9e;
+            }
+        """)
+
+    def get_text(self):
+        """Get the text content from the text edit widget."""
+        return self.text_edit.toPlainText()
+
+
 class HidingRulesPillWidget(QWidget):
     """Widget to display hiding rules as removable pills/badges."""
 
@@ -586,10 +674,10 @@ class HidingRulesPillWidget(QWidget):
 
     def parse_hiding_rules(self, rules_string: str) -> List[str]:
         """
-        Parse and validate semicolon-separated hiding rules.
+        Parse and validate hiding rules separated by semicolons or newlines.
 
         Args:
-            rules_string: Semicolon-separated regex patterns
+            rules_string: Regex patterns separated by semicolons or newlines
 
         Returns:
             List[str]: List of valid regex patterns
@@ -600,7 +688,10 @@ class HidingRulesPillWidget(QWidget):
         if not rules_string or not rules_string.strip():
             return []
 
-        rules = [rule.strip() for rule in rules_string.split(';') if rule.strip()]
+        # Split by both newlines and semicolons, then clean up
+        # First replace semicolons with newlines, then split by newlines
+        normalized = rules_string.replace(';', '\n')
+        rules = [rule.strip() for rule in normalized.split('\n') if rule.strip()]
 
         # Validate each regex pattern
         invalid_patterns = []
@@ -622,6 +713,10 @@ class HidingRulesPillWidget(QWidget):
         layout.setContentsMargins(2, 2, 2, 2)
         layout.setSpacing(6)
 
+        # Size constraints to fit properly in 40px table row
+        self.setMaximumHeight(36)  # Leave a bit of margin for the table row
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+
         # Add rule pills
         for rule in self.hiding_rules:
             pill = self.create_rule_pill(rule)
@@ -631,6 +726,11 @@ class HidingRulesPillWidget(QWidget):
         edit_btn = QPushButton("Edit...")
         edit_btn.setObjectName("secondaryButton")
         edit_btn.clicked.connect(self.edit_hiding_rules)
+        # Size constraints to fit properly in 40px table row
+        edit_btn.setMinimumWidth(60)   # Ensure text is fully visible
+        edit_btn.setMinimumHeight(28)  # Fits nicely in 40px row
+        edit_btn.setMaximumHeight(32)  # Prevent exceeding row height
+        edit_btn.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         layout.addWidget(edit_btn)
 
         layout.addStretch()
@@ -642,6 +742,10 @@ class HidingRulesPillWidget(QWidget):
         pill_layout = QHBoxLayout(pill)
         pill_layout.setContentsMargins(10, 4, 6, 4)  # Left, Top, Right, Bottom padding
         pill_layout.setSpacing(6)
+
+        # Height constraints to fit in 40px table row
+        pill.setMaximumHeight(30)  # Prevent pills from getting too tall
+        pill.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
 
         # Rule text
         rule_label = QLabel(rule)
@@ -667,18 +771,18 @@ class HidingRulesPillWidget(QWidget):
 
     def edit_hiding_rules(self):
         """Open a dialog to edit hiding rules."""
-        from PySide6.QtWidgets import QInputDialog
+        # Show multi-line text dialog with current rules (one per line)
+        current_rules = '\n'.join(self.hiding_rules) if self.hiding_rules else ''
 
-        # Show input dialog with current rules
-        current_rules = ';'.join(self.hiding_rules)
-        text, ok = QInputDialog.getText(
-            self,
-            "Edit Hiding Rules",
-            "Enter regex patterns separated by semicolons:\n(e.g., .*\\.tmp;.*\\.log;node_modules)",
+        dialog = MultiLineTextDialog(
+            parent=self,
+            title="Edit Hiding Rules",
+            label="Enter regex patterns (one per line or separated by semicolons):\n\nExamples:\n• .*\\.tmp$ - files ending with .tmp\n• node_modules - any path containing 'node_modules'\n• __pycache__ - any path containing '__pycache__'\n• .*\\.(log|tmp)$ - files ending with .log or .tmp",
             text=current_rules
         )
 
-        if ok:
+        if dialog.exec() == QDialog.Accepted:
+            text = dialog.get_text()
             try:
                 self.hiding_rules = self.parse_hiding_rules(text)
                 self.update_workspace_path_rules()

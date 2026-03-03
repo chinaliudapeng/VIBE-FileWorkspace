@@ -233,6 +233,28 @@ def verify_database():
         conn.close()
 
 
+def ensure_database_initialized():
+    """
+    Ensure the database is initialized and ready for use.
+
+    This function should be called at application startup to guarantee
+    that the database exists and has all required tables.
+    """
+    try:
+        # Check if database exists and is properly set up
+        if not verify_database():
+            logger.info("Database not found or incomplete, initializing...")
+            initialize_database()
+            # Verify again after initialization
+            if not verify_database():
+                raise RuntimeError("Failed to initialize database properly")
+        else:
+            logger.info("Database already initialized and verified")
+    except Exception as e:
+        logger.error(f"Critical error during database initialization: {e}")
+        raise
+
+
 if __name__ == '__main__':
     # Initialize database when run directly
     initialize_database()
