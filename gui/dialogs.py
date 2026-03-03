@@ -122,6 +122,7 @@ class WorkspaceDialog(QDialog):
         header.setSectionResizeMode(3, QHeaderView.ResizeToContents)  # Remove button column
 
         self.paths_table.verticalHeader().setVisible(False)
+        self.paths_table.verticalHeader().setDefaultSectionSize(40)  # increased row height to fit buttons and pills comfortably
         self.paths_table.setSelectionBehavior(QTableWidget.SelectRows)
         self.paths_table.setAlternatingRowColors(True)
 
@@ -230,9 +231,9 @@ class WorkspaceDialog(QDialog):
             # Remove button column
             remove_btn = QPushButton("Remove")
             remove_btn.setObjectName("dangerButton")
-            remove_btn.setMinimumWidth(100)  # Increased width for better text visibility
-            remove_btn.setMinimumHeight(32)  # Ensure adequate height
-            remove_btn.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)  # Prevent shrinking
+            remove_btn.setMinimumWidth(80)   # relaxed width
+            remove_btn.setMinimumHeight(28)  # fits nicely in 40px row
+            remove_btn.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
             remove_btn.clicked.connect(lambda checked, r=row: self.remove_path(r))
             self.paths_table.setCellWidget(row, 3, remove_btn)
 
@@ -446,10 +447,10 @@ class WorkspaceDialog(QDialog):
                 background-color: {danger_color};
                 border: none;
                 border-radius: 4px;
-                padding: 8px 18px;
+                padding: 4px 12px;
                 color: white;
                 font-size: 13px;
-                min-width: 100px;
+                min-width: 70px;
                 font-weight: 500;
                 text-align: center;
             }}
@@ -618,8 +619,8 @@ class HidingRulesPillWidget(QWidget):
     def init_ui(self):
         """Initialize the hiding rules pills UI."""
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(4, 4, 4, 4)
-        layout.setSpacing(4)
+        layout.setContentsMargins(2, 2, 2, 2)
+        layout.setSpacing(6)
 
         # Add rule pills
         for rule in self.hiding_rules:
@@ -636,10 +637,11 @@ class HidingRulesPillWidget(QWidget):
 
     def create_rule_pill(self, rule: str) -> QWidget:
         """Create a pill widget for a hiding rule."""
-        pill = QWidget()
+        pill = QFrame()
+        pill.setObjectName("rulePillContainer")
         pill_layout = QHBoxLayout(pill)
-        pill_layout.setContentsMargins(8, 4, 8, 4)  # Increased horizontal and vertical margins
-        pill_layout.setSpacing(6)  # Increased spacing between text and button
+        pill_layout.setContentsMargins(10, 4, 6, 4)  # Left, Top, Right, Bottom padding
+        pill_layout.setSpacing(6)
 
         # Rule text
         rule_label = QLabel(rule)
@@ -649,11 +651,10 @@ class HidingRulesPillWidget(QWidget):
         # Remove button
         remove_btn = QPushButton("×")
         remove_btn.setObjectName("ruleRemoveButton")
-        remove_btn.setFixedSize(20, 20)  # Increased size for better visibility while fitting in container
+        remove_btn.setFixedSize(16, 16)
         remove_btn.clicked.connect(lambda: self.remove_rule(rule))
         pill_layout.addWidget(remove_btn)
 
-        pill.setFixedHeight(28)  # Increased height to accommodate larger margins and button
         self.apply_rule_pill_style(pill)
         return pill
 
@@ -718,11 +719,9 @@ class HidingRulesPillWidget(QWidget):
     def apply_rule_pill_style(self, pill):
         """Apply pill/badge styling to a rule widget."""
         pill.setStyleSheet("""
-            QWidget {
+            QFrame#rulePillContainer {
                 background-color: #3498db;
                 border-radius: 12px;
-                margin: 2px;
-                padding: 3px;
             }
             QLabel#ruleLabel {
                 color: white;
@@ -730,23 +729,21 @@ class HidingRulesPillWidget(QWidget):
                 font-weight: 500;
                 background: transparent;
                 border: none;
-                padding: 2px 4px;
+                padding: 0px;
                 line-height: 1.2;
             }
             QPushButton#ruleRemoveButton {
-                background: transparent;
+                background: rgba(0, 0, 0, 0.15);
                 border: none;
                 color: white;
                 font-weight: bold;
-                font-size: 16px;
-                border-radius: 10px;
-                padding: 0px;
+                font-size: 14px;
+                border-radius: 8px;
+                padding-bottom: 2px;
                 text-align: center;
-                min-width: 20px;
-                min-height: 20px;
             }
             QPushButton#ruleRemoveButton:hover {
-                background-color: rgba(255, 255, 255, 0.2);
+                background-color: rgba(0, 0, 0, 0.3);
             }
         """)
 

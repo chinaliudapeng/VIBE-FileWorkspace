@@ -180,6 +180,15 @@ def initialize_database():
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_tags_file_id ON tags(file_id)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_tags_tag_name ON tags(tag_name)')
 
+        # Additional performance indexes
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_file_entry_relative_path ON file_entry(relative_path)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_workspace_path_root_path ON workspace_path(root_path)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_file_entry_workspace_relative ON file_entry(workspace_id, relative_path)')
+
+        # Case-insensitive search optimization for relative_path (commonly used in LIKE queries)
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_file_entry_relative_path_lower ON file_entry(LOWER(relative_path))')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_file_entry_absolute_path_lower ON file_entry(LOWER(absolute_path))')
+
         conn.commit()
         logger.info(f"Database initialized successfully at: {get_db_path()}")
 
