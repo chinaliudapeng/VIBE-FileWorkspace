@@ -22,10 +22,10 @@ Update the status with `[x]` when completed.
 - [x] 自动测试. ✅ COMPLETED
 - [x] Git Commit And Push. ✅ COMPLETED 
 
-## Future update 0004
-- [ ] app启动后如果发现SQLite文件不存在,则创建并初始化SQLite,包括初始化文件,在数据库新建表.
-- [ ] 在Workspace编辑面板中,内容的行中HidingRules列下的按钮,点击后弹出一个可输入多行文本的弹窗,可以编辑该行的HidingRules,编辑完成后点击OK按钮保存,点击Cancel按钮取消.
-- [ ] 在Workspace编辑面板中,内容的行中HidingRules列下的按钮,调整按钮的大小,使其能够显示完整的文本,不要超出行高.
-- [ ] 自动测试.
-- [ ] Git Commit And Push.
+## Future update 0004 ✅ COMPLETED
+- [x] app启动后如果发现SQLite文件不存在,则创建并初始化SQLite,包括初始化文件,在数据库新建表. ✅ COMPLETED
+- [x] 在Workspace编辑面板中,内容的行中HidingRules列下的按钮,点击后弹出一个可输入多行文本的弹窗,可以编辑该行的HidingRules,编辑完成后点击OK按钮保存,点击Cancel按钮取消. ✅ COMPLETED
+- [x] 在Workspace编辑面板中,内容的行中HidingRules列下的按钮,调整按钮的大小,使其能够显示完整的文本,不要超出行高. ✅ COMPLETED
+- [x] 自动测试. ✅ COMPLETED
+- [x] Git Commit And Push. ✅ COMPLETED
  
