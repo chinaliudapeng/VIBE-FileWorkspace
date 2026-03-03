@@ -9,7 +9,8 @@ from typing import Optional
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QHBoxLayout, QVBoxLayout,
     QSplitter, QListWidget, QLineEdit, QPushButton, QLabel, QListWidgetItem,
-    QMessageBox, QMenu, QDialog, QTableView, QHeaderView
+    QMessageBox, QMenu, QDialog, QTableView, QHeaderView, QToolBar, QStatusBar,
+    QCheckBox
 )
 from PySide6.QtCore import Qt, QSize, Signal
 from PySide6.QtGui import QFont, QIcon, QClipboard, QAction, QKeySequence
@@ -435,6 +436,10 @@ class MainWindow(QMainWindow):
         search_widget = self.create_search_area()
         right_layout.addWidget(search_widget)
 
+        # Batch operations toolbar
+        batch_toolbar = self.create_batch_operations_toolbar()
+        right_layout.addWidget(batch_toolbar)
+
         # File display area (bottom of right panel)
         self.file_table = self.create_file_table()
         right_layout.addWidget(self.file_table)
@@ -465,6 +470,50 @@ class MainWindow(QMainWindow):
 
         return search_widget
 
+    def create_batch_operations_toolbar(self):
+        """Create the batch operations toolbar."""
+        toolbar_widget = QWidget()
+        toolbar_layout = QHBoxLayout(toolbar_widget)
+        toolbar_layout.setSpacing(10)
+        toolbar_layout.setContentsMargins(0, 5, 0, 5)
+
+        # Select All checkbox
+        self.select_all_checkbox = QCheckBox("Select All")
+        self.select_all_checkbox.setObjectName("selectAllCheckbox")
+        self.select_all_checkbox.stateChanged.connect(self._on_select_all_changed)
+        toolbar_layout.addWidget(self.select_all_checkbox)
+
+        # Selection count label
+        self.selection_count_label = QLabel("0 files selected")
+        self.selection_count_label.setObjectName("selectionCountLabel")
+        toolbar_layout.addWidget(self.selection_count_label)
+
+        # Spacer
+        toolbar_layout.addStretch()
+
+        # Batch tag button
+        self.batch_tag_btn = QPushButton("Tag Selected")
+        self.batch_tag_btn.setObjectName("batchButton")
+        self.batch_tag_btn.clicked.connect(self._on_batch_tag)
+        self.batch_tag_btn.setEnabled(False)
+        toolbar_layout.addWidget(self.batch_tag_btn)
+
+        # Batch delete button
+        self.batch_delete_btn = QPushButton("Delete Selected")
+        self.batch_delete_btn.setObjectName("batchButton")
+        self.batch_delete_btn.clicked.connect(self._on_batch_delete)
+        self.batch_delete_btn.setEnabled(False)
+        toolbar_layout.addWidget(self.batch_delete_btn)
+
+        # Batch remove from workspace button
+        self.batch_remove_btn = QPushButton("Remove Selected")
+        self.batch_remove_btn.setObjectName("batchButton")
+        self.batch_remove_btn.clicked.connect(self._on_batch_remove_from_workspace)
+        self.batch_remove_btn.setEnabled(False)
+        toolbar_layout.addWidget(self.batch_remove_btn)
+
+        return toolbar_widget
+
     def create_file_table(self):
         """Create the file table view with model."""
         table = QTableView()
@@ -486,6 +535,7 @@ class MainWindow(QMainWindow):
         header.setSectionResizeMode(QHeaderView.Interactive)
 
         # Set reasonable default column widths
+        header.resizeSection(FileTableModel.COL_CHECKBOX, 30)  # Small checkbox column
         header.resizeSection(FileTableModel.COL_RELATIVE_PATH, 250)
         header.resizeSection(FileTableModel.COL_FILE_TYPE, 100)
         header.resizeSection(FileTableModel.COL_ABSOLUTE_PATH, 350)
@@ -496,6 +546,10 @@ class MainWindow(QMainWindow):
 
         # Connect header click for custom cycling sort behavior
         header.sectionClicked.connect(self._handle_header_click)
+
+        # Connect model data changes to update batch operations UI
+        self.file_table_model.dataChanged.connect(self._update_batch_operations_ui)
+        self.file_table_model.modelReset.connect(self._update_batch_operations_ui)
 
         # Configure vertical header
         table.verticalHeader().setVisible(False)
@@ -671,6 +725,23 @@ class MainWindow(QMainWindow):
         terminal_action.triggered.connect(lambda: self._open_in_terminal(file_entry.absolute_path))
 
         menu.addSeparator()
+
+        # Check if we have selected files for batch operations
+        checked_count = self.file_table_model.get_checked_file_count()
+        if checked_count > 0:
+            # Add batch operations submenu
+            batch_menu = menu.addMenu(f"Batch Operations ({checked_count} selected)")
+
+            batch_tag_action = batch_menu.addAction("Tag Selected Files")
+            batch_tag_action.triggered.connect(self._on_batch_tag)
+
+            batch_delete_action = batch_menu.addAction("Delete Selected Files")
+            batch_delete_action.triggered.connect(self._on_batch_delete)
+
+            batch_remove_action = batch_menu.addAction("Remove Selected from Workspace")
+            batch_remove_action.triggered.connect(self._on_batch_remove_from_workspace)
+
+            menu.addSeparator()
 
         # Assign/Edit Tags action
         assign_tags_action = menu.addAction("Assign/Edit Tags")
@@ -1056,7 +1127,224 @@ class MainWindow(QMainWindow):
             QHeaderView::section:hover {{
                 background-color: {hover_color};
             }}
+
+            /* Batch operations toolbar */
+            #selectAllCheckbox {{
+                color: {text_primary};
+                font-size: 13px;
+            }}
+
+            #selectionCountLabel {{
+                color: {text_secondary};
+                font-size: 12px;
+                font-style: italic;
+            }}
+
+            #batchButton {{
+                background-color: {accent_blue};
+                border: 1px solid {border_color};
+                color: white;
+                padding: 6px 12px;
+                font-weight: bold;
+                border-radius: 4px;
+                min-width: 80px;
+            }}
+
+            #batchButton:hover {{
+                background-color: {hover_color};
+            }}
+
+            #batchButton:disabled {{
+                background-color: {bg_tertiary};
+                color: {text_secondary};
+            }}
         """)
+
+    # Batch operations methods
+    def _update_batch_operations_ui(self):
+        """Update the batch operations UI based on current selections."""
+        try:
+            checked_count = self.file_table_model.get_checked_file_count()
+            total_count = self.file_table_model.get_file_count()
+
+            # Update selection count label
+            if checked_count == 0:
+                self.selection_count_label.setText("0 files selected")
+            elif checked_count == 1:
+                self.selection_count_label.setText("1 file selected")
+            else:
+                self.selection_count_label.setText(f"{checked_count} files selected")
+
+            # Update select all checkbox state
+            if checked_count == 0:
+                self.select_all_checkbox.blockSignals(True)
+                self.select_all_checkbox.setCheckState(Qt.Unchecked)
+                self.select_all_checkbox.blockSignals(False)
+            elif checked_count == total_count and total_count > 0:
+                self.select_all_checkbox.blockSignals(True)
+                self.select_all_checkbox.setCheckState(Qt.Checked)
+                self.select_all_checkbox.blockSignals(False)
+            else:
+                self.select_all_checkbox.blockSignals(True)
+                self.select_all_checkbox.setCheckState(Qt.PartiallyChecked)
+                self.select_all_checkbox.blockSignals(False)
+
+            # Enable/disable batch operation buttons
+            has_selection = checked_count > 0
+            self.batch_tag_btn.setEnabled(has_selection)
+            self.batch_delete_btn.setEnabled(has_selection)
+            self.batch_remove_btn.setEnabled(has_selection)
+
+        except Exception as e:
+            logger.error(f"Error updating batch operations UI: {e}")
+
+    def _on_select_all_changed(self, state):
+        """Handle select all checkbox state change."""
+        try:
+            if state == Qt.Checked:
+                self.file_table_model.check_all_files()
+            else:
+                self.file_table_model.uncheck_all_files()
+        except Exception as e:
+            logger.error(f"Error in select all: {e}")
+
+    def _on_batch_tag(self):
+        """Handle batch tag assignment."""
+        try:
+            checked_files = self.file_table_model.get_checked_files()
+            if not checked_files:
+                QMessageBox.information(self, "No Selection", "Please select files to tag.")
+                return
+
+            # Open tag dialog for batch tagging
+            dialog = TagDialog(self)
+            dialog.setWindowTitle(f"Tag {len(checked_files)} Selected Files")
+
+            # For batch operations, we don't show existing tags since files may have different tags
+            dialog.load_existing_tags([])  # Empty list for batch mode
+
+            if dialog.exec() == QDialog.Accepted:
+                new_tags = dialog.get_current_tags()
+                if new_tags:
+                    # Apply tags to all selected files
+                    for file_entry in checked_files:
+                        for tag in new_tags:
+                            try:
+                                from core.models import Tag
+                                Tag.add_tag(file_entry.id, tag)
+                            except Exception as e:
+                                logger.warning(f"Failed to add tag '{tag}' to file {file_entry.relative_path}: {e}")
+
+                    # Refresh the display
+                    self.file_table_model.refresh()
+                    QMessageBox.information(self, "Success", f"Tags applied to {len(checked_files)} selected files.")
+
+                    # Clear selection after successful operation
+                    self.file_table_model.uncheck_all_files()
+
+        except Exception as e:
+            logger.error(f"Error in batch tag operation: {e}")
+            QMessageBox.critical(self, "Error", f"Failed to apply tags: {str(e)}")
+
+    def _on_batch_delete(self):
+        """Handle batch file deletion."""
+        try:
+            checked_files = self.file_table_model.get_checked_files()
+            if not checked_files:
+                QMessageBox.information(self, "No Selection", "Please select files to delete.")
+                return
+
+            # Confirm deletion
+            reply = QMessageBox.question(
+                self, "Confirm Batch Deletion",
+                f"Are you sure you want to delete {len(checked_files)} selected files?\n"
+                "This will move them to the recycle bin.",
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.No
+            )
+
+            if reply == QMessageBox.Yes:
+                success_count = 0
+                error_count = 0
+
+                for file_entry in checked_files:
+                    try:
+                        # Delete the actual file using send2trash
+                        send2trash.send2trash(file_entry.absolute_path)
+                        success_count += 1
+                        logger.info(f"Deleted file: {file_entry.absolute_path}")
+                    except Exception as e:
+                        error_count += 1
+                        logger.error(f"Failed to delete file {file_entry.absolute_path}: {e}")
+
+                # Refresh the display
+                self.file_table_model.refresh()
+
+                # Show result message
+                if error_count == 0:
+                    QMessageBox.information(self, "Success", f"Successfully deleted {success_count} files.")
+                else:
+                    QMessageBox.warning(
+                        self, "Partial Success",
+                        f"Deleted {success_count} files successfully.\n{error_count} files failed to delete."
+                    )
+
+                # Clear selection after operation
+                self.file_table_model.uncheck_all_files()
+
+        except Exception as e:
+            logger.error(f"Error in batch delete operation: {e}")
+            QMessageBox.critical(self, "Error", f"Failed to delete files: {str(e)}")
+
+    def _on_batch_remove_from_workspace(self):
+        """Handle batch removal from workspace."""
+        try:
+            checked_files = self.file_table_model.get_checked_files()
+            if not checked_files:
+                QMessageBox.information(self, "No Selection", "Please select files to remove from workspace.")
+                return
+
+            # Confirm removal
+            reply = QMessageBox.question(
+                self, "Confirm Batch Removal",
+                f"Are you sure you want to remove {len(checked_files)} selected files from the workspace?\n"
+                "This will not delete the actual files, only remove them from the index.",
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.No
+            )
+
+            if reply == QMessageBox.Yes:
+                success_count = 0
+                error_count = 0
+
+                for file_entry in checked_files:
+                    try:
+                        from core.scanner import FileEntry
+                        FileEntry.delete(file_entry.id)
+                        success_count += 1
+                        logger.info(f"Removed file from workspace: {file_entry.relative_path}")
+                    except Exception as e:
+                        error_count += 1
+                        logger.error(f"Failed to remove file {file_entry.relative_path}: {e}")
+
+                # Refresh the display
+                self.file_table_model.refresh()
+
+                # Show result message
+                if error_count == 0:
+                    QMessageBox.information(self, "Success", f"Successfully removed {success_count} files from workspace.")
+                else:
+                    QMessageBox.warning(
+                        self, "Partial Success",
+                        f"Removed {success_count} files successfully.\n{error_count} files failed to remove."
+                    )
+
+                # Clear selection after operation
+                self.file_table_model.uncheck_all_files()
+
+        except Exception as e:
+            logger.error(f"Error in batch remove operation: {e}")
+            QMessageBox.critical(self, "Error", f"Failed to remove files: {str(e)}")
 
     def _start_watching_all_workspaces(self):
         """Start watching all existing workspaces on application startup."""

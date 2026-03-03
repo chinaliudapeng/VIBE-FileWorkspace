@@ -18,19 +18,21 @@ class FileTableModel(QAbstractTableModel):
     """Table model for displaying FileEntry data in a QTableView."""
 
     # Column indices
-    COL_RELATIVE_PATH = 0
-    COL_FILE_TYPE = 1
-    COL_ABSOLUTE_PATH = 2
-    COL_TAGS = 3  # Will be implemented in Phase 8
+    COL_CHECKBOX = 0
+    COL_RELATIVE_PATH = 1
+    COL_FILE_TYPE = 2
+    COL_ABSOLUTE_PATH = 3
+    COL_TAGS = 4
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self._files: List[FileEntry] = []
         self._workspace_id: Optional[int] = None
-        self._headers = ["Relative Path", "File Type", "Absolute Path", "Tags"]
+        self._headers = ["", "Relative Path", "File Type", "Absolute Path", "Tags"]
         self._sort_column = -1
         self._sort_order = Qt.AscendingOrder
         self._tags_cache: dict[int, List[Tag]] = {}  # Cache tags by file_id
+        self._checked_files: set[int] = set()  # Set of checked file IDs
 
     def _get_file_type_color(self, file_type: str) -> QColor:
         """
@@ -88,7 +90,10 @@ class FileTableModel(QAbstractTableModel):
         column = index.column()
 
         if role == Qt.DisplayRole:
-            if column == self.COL_RELATIVE_PATH:
+            if column == self.COL_CHECKBOX:
+                # Checkbox column - no display text
+                return ""
+            elif column == self.COL_RELATIVE_PATH:
                 # Format relative path - show it normally
                 return file_entry.relative_path
             elif column == self.COL_FILE_TYPE:
@@ -104,6 +109,11 @@ class FileTableModel(QAbstractTableModel):
                 # Return empty string for display, delegate handles the rendering
                 return ""
 
+        elif role == Qt.CheckStateRole:
+            if column == self.COL_CHECKBOX:
+                # Return checkbox state for the checkbox column
+                return Qt.Checked if file_entry.id in self._checked_files else Qt.Unchecked
+
         elif role == Qt.ToolTipRole:
             # Show full absolute path as tooltip for all columns
             return file_entry.absolute_path
@@ -116,14 +126,48 @@ class FileTableModel(QAbstractTableModel):
                 return font
 
         elif role == Qt.BackgroundRole:
-            # Return background color based on file type
-            return self._get_file_type_color(file_entry.file_type)
+            # Return background color based on file type (but not for checkbox column)
+            if column != self.COL_CHECKBOX:
+                return self._get_file_type_color(file_entry.file_type)
 
         elif role == Qt.UserRole:
             # Store the FileEntry object for easy access
             return file_entry
 
         return None
+
+    def setData(self, index: QModelIndex, value: Any, role: int = Qt.EditRole) -> bool:
+        """Set data for the given index and role."""
+        if not index.isValid() or index.row() >= len(self._files):
+            return False
+
+        file_entry = self._files[index.row()]
+        column = index.column()
+
+        if role == Qt.CheckStateRole and column == self.COL_CHECKBOX:
+            # Toggle checkbox state
+            if value == Qt.Checked:
+                self._checked_files.add(file_entry.id)
+            else:
+                self._checked_files.discard(file_entry.id)
+
+            self.dataChanged.emit(index, index, [Qt.CheckStateRole])
+            return True
+
+        return False
+
+    def flags(self, index: QModelIndex) -> Qt.ItemFlags:
+        """Return the item flags for the given index."""
+        if not index.isValid():
+            return Qt.NoItemFlags
+
+        flags = Qt.ItemIsEnabled | Qt.ItemIsSelectable
+
+        # Make checkbox column checkable
+        if index.column() == self.COL_CHECKBOX:
+            flags |= Qt.ItemIsUserCheckable
+
+        return flags
 
     def headerData(self, section: int, orientation: Qt.Orientation, role: int = Qt.DisplayRole) -> Any:
         """Return header data for the given section."""
@@ -245,6 +289,7 @@ class FileTableModel(QAbstractTableModel):
         self._workspace_id = None
         self._files = []
         self._tags_cache = {}
+        self._checked_files = set()
         self.endResetModel()
 
     def _preload_tags(self) -> None:
@@ -339,7 +384,13 @@ class FileTableModel(QAbstractTableModel):
         self.layoutAboutToBeChanged.emit()
 
         # Define sort key functions for each column
-        if column == self.COL_RELATIVE_PATH:
+        if column == self.COL_CHECKBOX:
+            # Sort by checkbox state (checked files first)
+            def sort_key(file_entry: FileEntry) -> tuple:
+                is_checked = file_entry.id in self._checked_files
+                return (not is_checked, file_entry.relative_path.lower())
+
+        elif column == self.COL_RELATIVE_PATH:
             # Sort by relative path, directories first
             def sort_key(file_entry: FileEntry) -> tuple:
                 is_dir = file_entry.file_type == 'directory'
@@ -382,3 +433,48 @@ class FileTableModel(QAbstractTableModel):
         self._files.sort(key=sort_key, reverse=reverse)
 
         self.layoutChanged.emit()
+
+    # Batch operations methods
+    def get_checked_files(self) -> List[FileEntry]:
+        """Get a list of currently checked FileEntry objects."""
+        checked_files = []
+        for file_entry in self._files:
+            if file_entry.id in self._checked_files:
+                checked_files.append(file_entry)
+        return checked_files
+
+    def get_checked_file_count(self) -> int:
+        """Get the number of currently checked files."""
+        return len(self._checked_files)
+
+    def check_all_files(self) -> None:
+        """Check all files in the current model."""
+        if not self._files:
+            return
+
+        self.layoutAboutToBeChanged.emit()
+        for file_entry in self._files:
+            self._checked_files.add(file_entry.id)
+        self.layoutChanged.emit()
+
+    def uncheck_all_files(self) -> None:
+        """Uncheck all files in the current model."""
+        if not self._checked_files:
+            return
+
+        self.layoutAboutToBeChanged.emit()
+        self._checked_files.clear()
+        self.layoutChanged.emit()
+
+    def toggle_all_files(self) -> None:
+        """Toggle the check state of all files."""
+        if len(self._checked_files) == len(self._files):
+            # All checked, uncheck all
+            self.uncheck_all_files()
+        else:
+            # Not all checked, check all
+            self.check_all_files()
+
+    def is_file_checked(self, file_entry: FileEntry) -> bool:
+        """Check if a specific file is checked."""
+        return file_entry.id in self._checked_files

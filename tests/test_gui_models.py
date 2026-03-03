@@ -58,17 +58,17 @@ class TestFileTableModel(unittest.TestCase):
     def test_initial_state(self):
         """Test initial model state."""
         self.assertEqual(self.model.rowCount(), 0)
-        self.assertEqual(self.model.columnCount(), 4)
+        self.assertEqual(self.model.columnCount(), 5)  # Updated for checkbox column
         self.assertIsNone(self.model.get_workspace_id())
         self.assertEqual(self.model.get_file_count(), 0)
 
     def test_column_count(self):
         """Test column count is correct."""
-        self.assertEqual(self.model.columnCount(), 4)
+        self.assertEqual(self.model.columnCount(), 5)  # Updated for checkbox column
 
     def test_header_data(self):
         """Test header data."""
-        expected_headers = ["Relative Path", "File Type", "Absolute Path", "Tags"]
+        expected_headers = ["", "Relative Path", "File Type", "Absolute Path", "Tags"]  # Updated for checkbox column
         for i, expected_header in enumerate(expected_headers):
             header = self.model.headerData(i, Qt.Horizontal, Qt.DisplayRole)
             self.assertEqual(header, expected_header)
@@ -391,6 +391,128 @@ class TestFileTableModel(unittest.TestCase):
         self.assertGreaterEqual(len(filtered_files), 1)
         visible_files = [f.relative_path for f in filtered_files]
         self.assertIn("main.py", visible_files)
+
+    def test_batch_operations_initial_state(self):
+        """Test initial state of batch operations."""
+        self.assertEqual(self.model.get_checked_file_count(), 0)
+        self.assertEqual(len(self.model.get_checked_files()), 0)
+
+    def test_check_and_uncheck_files(self):
+        """Test checking and unchecking individual files."""
+        # Set up some files in the model
+        self.model._set_files(self.test_files)
+
+        # Initially no files should be checked
+        self.assertEqual(self.model.get_checked_file_count(), 0)
+        self.assertFalse(self.model.is_file_checked(self.test_files[0]))
+
+        # Test checking a file via setData
+        index = self.model.index(0, FileTableModel.COL_CHECKBOX)
+        result = self.model.setData(index, Qt.Checked, Qt.CheckStateRole)
+        self.assertTrue(result)
+        self.assertEqual(self.model.get_checked_file_count(), 1)
+        self.assertTrue(self.model.is_file_checked(self.test_files[0]))
+
+        # Check checkbox state via data method
+        checkbox_state = self.model.data(index, Qt.CheckStateRole)
+        self.assertEqual(checkbox_state, Qt.Checked)
+
+        # Test unchecking the file
+        result = self.model.setData(index, Qt.Unchecked, Qt.CheckStateRole)
+        self.assertTrue(result)
+        self.assertEqual(self.model.get_checked_file_count(), 0)
+        self.assertFalse(self.model.is_file_checked(self.test_files[0]))
+
+        # Check checkbox state is unchecked
+        checkbox_state = self.model.data(index, Qt.CheckStateRole)
+        self.assertEqual(checkbox_state, Qt.Unchecked)
+
+    def test_check_all_files(self):
+        """Test checking all files at once."""
+        # Set up some files in the model
+        self.model._set_files(self.test_files)
+
+        # Check all files
+        self.model.check_all_files()
+        self.assertEqual(self.model.get_checked_file_count(), len(self.test_files))
+
+        # Verify all files are checked
+        for file_entry in self.test_files:
+            self.assertTrue(self.model.is_file_checked(file_entry))
+
+        checked_files = self.model.get_checked_files()
+        self.assertEqual(len(checked_files), len(self.test_files))
+
+    def test_uncheck_all_files(self):
+        """Test unchecking all files at once."""
+        # Set up some files and check them all
+        self.model._set_files(self.test_files)
+        self.model.check_all_files()
+        self.assertEqual(self.model.get_checked_file_count(), len(self.test_files))
+
+        # Uncheck all files
+        self.model.uncheck_all_files()
+        self.assertEqual(self.model.get_checked_file_count(), 0)
+
+        # Verify no files are checked
+        for file_entry in self.test_files:
+            self.assertFalse(self.model.is_file_checked(file_entry))
+
+        checked_files = self.model.get_checked_files()
+        self.assertEqual(len(checked_files), 0)
+
+    def test_toggle_all_files(self):
+        """Test toggling all files."""
+        # Set up some files
+        self.model._set_files(self.test_files)
+
+        # Initially no files checked, toggle should check all
+        self.model.toggle_all_files()
+        self.assertEqual(self.model.get_checked_file_count(), len(self.test_files))
+
+        # All files checked, toggle should uncheck all
+        self.model.toggle_all_files()
+        self.assertEqual(self.model.get_checked_file_count(), 0)
+
+        # Check some files manually, then toggle (should check remaining)
+        index = self.model.index(0, FileTableModel.COL_CHECKBOX)
+        self.model.setData(index, Qt.Checked, Qt.CheckStateRole)
+        self.assertEqual(self.model.get_checked_file_count(), 1)
+
+        # Toggle should check all (since not all are checked)
+        self.model.toggle_all_files()
+        self.assertEqual(self.model.get_checked_file_count(), len(self.test_files))
+
+    def test_clear_files_resets_checkboxes(self):
+        """Test that clearing files resets checkbox state."""
+        # Set up some files and check them
+        self.model._set_files(self.test_files)
+        self.model.check_all_files()
+        self.assertEqual(self.model.get_checked_file_count(), len(self.test_files))
+
+        # Clear files
+        self.model.clear_files()
+        self.assertEqual(self.model.get_checked_file_count(), 0)
+        self.assertEqual(len(self.model.get_checked_files()), 0)
+
+    def test_checkbox_column_flags(self):
+        """Test that the checkbox column has the correct flags."""
+        # Set up some files
+        self.model._set_files(self.test_files)
+
+        # Test checkbox column flags
+        index = self.model.index(0, FileTableModel.COL_CHECKBOX)
+        flags = self.model.flags(index)
+        self.assertTrue(flags & Qt.ItemIsUserCheckable)
+        self.assertTrue(flags & Qt.ItemIsEnabled)
+        self.assertTrue(flags & Qt.ItemIsSelectable)
+
+        # Test other columns don't have checkable flag
+        index = self.model.index(0, FileTableModel.COL_RELATIVE_PATH)
+        flags = self.model.flags(index)
+        self.assertFalse(flags & Qt.ItemIsUserCheckable)
+        self.assertTrue(flags & Qt.ItemIsEnabled)
+        self.assertTrue(flags & Qt.ItemIsSelectable)
 
 
 if __name__ == '__main__':

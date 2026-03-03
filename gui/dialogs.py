@@ -638,8 +638,8 @@ class HidingRulesPillWidget(QWidget):
         """Create a pill widget for a hiding rule."""
         pill = QWidget()
         pill_layout = QHBoxLayout(pill)
-        pill_layout.setContentsMargins(6, 2, 6, 2)
-        pill_layout.setSpacing(4)
+        pill_layout.setContentsMargins(8, 4, 8, 4)  # Increased horizontal and vertical margins
+        pill_layout.setSpacing(6)  # Increased spacing between text and button
 
         # Rule text
         rule_label = QLabel(rule)
@@ -649,11 +649,11 @@ class HidingRulesPillWidget(QWidget):
         # Remove button
         remove_btn = QPushButton("×")
         remove_btn.setObjectName("ruleRemoveButton")
-        remove_btn.setFixedSize(18, 18)  # Increased size for better text visibility
+        remove_btn.setFixedSize(20, 20)  # Increased size for better visibility while fitting in container
         remove_btn.clicked.connect(lambda: self.remove_rule(rule))
         pill_layout.addWidget(remove_btn)
 
-        pill.setFixedHeight(24)  # Increased height to accommodate larger remove button
+        pill.setFixedHeight(28)  # Increased height to accommodate larger margins and button
         self.apply_rule_pill_style(pill)
         return pill
 
@@ -720,27 +720,30 @@ class HidingRulesPillWidget(QWidget):
         pill.setStyleSheet("""
             QWidget {
                 background-color: #3498db;
-                border-radius: 10px;
-                margin: 1px;
-                padding: 2px;
+                border-radius: 12px;
+                margin: 2px;
+                padding: 3px;
             }
             QLabel#ruleLabel {
                 color: white;
-                font-size: 11px;
+                font-size: 12px;
                 font-weight: 500;
                 background: transparent;
                 border: none;
-                padding: 0px;
+                padding: 2px 4px;
+                line-height: 1.2;
             }
             QPushButton#ruleRemoveButton {
                 background: transparent;
                 border: none;
                 color: white;
                 font-weight: bold;
-                font-size: 14px;
-                border-radius: 9px;
+                font-size: 16px;
+                border-radius: 10px;
                 padding: 0px;
                 text-align: center;
+                min-width: 20px;
+                min-height: 20px;
             }
             QPushButton#ruleRemoveButton:hover {
                 background-color: rgba(255, 255, 255, 0.2);

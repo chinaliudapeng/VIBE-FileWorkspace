@@ -9,6 +9,7 @@ from pathlib import Path
 import tempfile
 import os
 from unittest.mock import patch
+import unittest
 
 # Add the project root to sys.path so we can import modules
 project_root = Path(__file__).parent.parent
@@ -18,14 +19,27 @@ from core.models import Workspace, WorkspacePath
 from core.scanner import FileEntry, scan_workspace
 from core.db import initialize_database
 from gui.models import FileTableModel
-from PySide6.QtCore import QCoreApplication
+from PySide6.QtWidgets import QApplication
+
+class TestGUIWorkflow(unittest.TestCase):
+    """Test class for GUI workflow tests."""
+
+    @classmethod
+    def setUpClass(cls):
+        """Set up QApplication for GUI tests."""
+        # Create QApplication instance (required for GUI components)
+        cls.app = QApplication.instance()
+        if cls.app is None:
+            cls.app = QApplication([])
 
 def test_gui_workspace_creation_workflow():
     """Test the complete GUI workspace creation workflow."""
     print("=== Testing GUI Workspace Creation Workflow ===")
 
-    # Initialize Qt application context
-    app = QCoreApplication([])
+    # Initialize Qt application context - reuse existing application
+    app = QApplication.instance()
+    if app is None:
+        app = QApplication([])
 
     # Create a temporary database for testing
     with tempfile.TemporaryDirectory() as temp_db_dir:
