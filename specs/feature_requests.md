@@ -16,9 +16,9 @@ Update the status with `[x]` when completed.
 - [x] 自动测试. ✅ COMPLETED
 - [x] Git Commit And Push. ✅ COMPLETED
 
-## Future update 0003
-- [ ] 将SQLite的存储目录迁移到exe所在目录的.db目录中.
-- [ ] 迁移完成后删除公共目录的SQLite数据库文件. 
-- [ ] 自动测试. 
-- [ ] Git Commit And Push. 
+## Future update 0003 ✅ COMPLETED
+- [x] 将SQLite的存储目录迁移到exe所在目录的.db目录中. ✅ COMPLETED
+- [x] 迁移完成后删除公共目录的SQLite数据库文件. ✅ COMPLETED
+- [x] 自动测试. ✅ COMPLETED
+- [x] Git Commit And Push. ✅ COMPLETED 
  
