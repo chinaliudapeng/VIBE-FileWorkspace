@@ -232,7 +232,7 @@ class WorkspaceDialog(QDialog):
             # Remove button column
             remove_btn = QPushButton("Remove")
             remove_btn.setObjectName("dangerButton")
-            remove_btn.setMinimumWidth(70)   # optimized width for text visibility
+            remove_btn.setMinimumWidth(60)   # optimized width for text visibility, reduced to prevent exceeding cell
             remove_btn.setMinimumHeight(28)  # fits nicely in 40px row
             remove_btn.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
             remove_btn.clicked.connect(lambda checked, r=row: self.remove_path(r))
@@ -727,7 +727,7 @@ class HidingRulesPillWidget(QWidget):
         edit_btn.setObjectName("secondaryButton")
         edit_btn.clicked.connect(self.edit_hiding_rules)
         # Size constraints to fit properly in 40px table row, matching Remove button size
-        edit_btn.setMinimumWidth(70)   # Matches Remove button width for consistency
+        edit_btn.setMinimumWidth(60)   # Matches optimized Remove button width for consistency
         edit_btn.setMinimumHeight(28)  # Fits nicely in 40px row
         edit_btn.setMaximumHeight(32)  # Prevent exceeding row height
         edit_btn.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
