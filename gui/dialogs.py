@@ -230,7 +230,8 @@ class WorkspaceDialog(QDialog):
             # Remove button column
             remove_btn = QPushButton("Remove")
             remove_btn.setObjectName("dangerButton")
-            remove_btn.setMinimumWidth(90)  # Ensure button is wide enough for text
+            remove_btn.setMinimumWidth(100)  # Increased width for better text visibility
+            remove_btn.setMinimumHeight(32)  # Ensure adequate height
             remove_btn.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)  # Prevent shrinking
             remove_btn.clicked.connect(lambda checked, r=row: self.remove_path(r))
             self.paths_table.setCellWidget(row, 3, remove_btn)
@@ -445,11 +446,12 @@ class WorkspaceDialog(QDialog):
                 background-color: {danger_color};
                 border: none;
                 border-radius: 4px;
-                padding: 8px 16px;
+                padding: 8px 18px;
                 color: white;
-                font-size: 12px;
-                min-width: 90px;
+                font-size: 13px;
+                min-width: 100px;
                 font-weight: 500;
+                text-align: center;
             }}
 
             QPushButton#dangerButton:hover {{
@@ -493,7 +495,7 @@ class TagPillWidget(QWidget):
         if self.removable:
             self.remove_btn = QPushButton("×")
             self.remove_btn.setObjectName("tagRemoveButton")
-            self.remove_btn.setFixedSize(16, 16)
+            self.remove_btn.setFixedSize(18, 18)  # Increased size for better text visibility
             self.remove_btn.clicked.connect(self.remove_requested)
             layout.addWidget(self.remove_btn)
 
@@ -539,9 +541,10 @@ class TagPillWidget(QWidget):
                 border: none;
                 color: {text_color};
                 font-weight: bold;
-                font-size: 14px;
-                border-radius: 8px;
+                font-size: 15px;
+                border-radius: 9px;
                 padding: 0px;
+                text-align: center;
             }}
             QPushButton#tagRemoveButton:hover {{
                 background-color: rgba(255, 255, 255, 0.2);
@@ -646,11 +649,11 @@ class HidingRulesPillWidget(QWidget):
         # Remove button
         remove_btn = QPushButton("×")
         remove_btn.setObjectName("ruleRemoveButton")
-        remove_btn.setFixedSize(14, 14)
+        remove_btn.setFixedSize(18, 18)  # Increased size for better text visibility
         remove_btn.clicked.connect(lambda: self.remove_rule(rule))
         pill_layout.addWidget(remove_btn)
 
-        pill.setFixedHeight(20)
+        pill.setFixedHeight(24)  # Increased height to accommodate larger remove button
         self.apply_rule_pill_style(pill)
         return pill
 
@@ -734,9 +737,10 @@ class HidingRulesPillWidget(QWidget):
                 border: none;
                 color: white;
                 font-weight: bold;
-                font-size: 12px;
-                border-radius: 7px;
+                font-size: 14px;
+                border-radius: 9px;
                 padding: 0px;
+                text-align: center;
             }
             QPushButton#ruleRemoveButton:hover {
                 background-color: rgba(255, 255, 255, 0.2);
