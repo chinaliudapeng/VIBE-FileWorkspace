@@ -29,3 +29,8 @@ Update the status with `[x]` when completed.
 - [x] 自动测试. ✅ COMPLETED
 - [x] Git Commit And Push. ✅ COMPLETED
  
+ ## Future update 0005
+- [ ] 在Workspace编辑面板中,内容的行中Remove按钮现在过宽了,保证文本显示的前提下缩小Remove按钮的宽度,使按钮不要超出当前单元格. 
+- [ ] 在Workspace编辑面板中,内容的行中HidingRules列下的Edit按钮与调整后的Remove按钮大小一样.
+- [ ] 自动测试.
+- [ ] Git Commit And Push.

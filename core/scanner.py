@@ -532,8 +532,12 @@ class FilesystemScanner:
                 attrs = ctypes.windll.kernel32.GetFileAttributesW(str(path))
                 if attrs != -1 and bool(attrs & 2):  # FILE_ATTRIBUTE_HIDDEN = 2
                     return True
-            except Exception:
-                pass
+            except OSError as e:
+                logger.debug(f"Windows API error checking hidden attribute for {path}: {e}")
+            except AttributeError as e:
+                logger.warning(f"Windows API not available for hidden attribute check: {e}")
+            except Exception as e:
+                logger.warning(f"Unexpected error checking hidden attribute for {path}: {e}")
                 
         return False
 
@@ -610,20 +614,26 @@ class FilesystemScanner:
         discovered_files = []
 
         try:
-            if file_path.exists() and file_path.is_file():
-                if self._is_hidden(file_path):
-                    return []
-                    
-                # For single files, the relative path is just the filename
-                relative_path = file_path.name
-                absolute_path = str(file_path.resolve())
-                file_type = self._get_file_type(file_path)
+            # Check if it's actually a file (this will raise if file doesn't exist)
+            if not file_path.is_file():
+                logger.warning(f"Path is not a file: {file_path}")
+                return []
 
-                discovered_files.append({
-                    'relative_path': relative_path,
-                    'absolute_path': absolute_path,
-                    'file_type': file_type
-                })
+            if self._is_hidden(file_path):
+                return []
+
+            # For single files, the relative path is just the filename
+            relative_path = file_path.name
+            absolute_path = str(file_path.resolve())
+            file_type = self._get_file_type(file_path)
+
+            discovered_files.append({
+                'relative_path': relative_path,
+                'absolute_path': absolute_path,
+                'file_type': file_type
+            })
+        except (FileNotFoundError, NotADirectoryError, PermissionError) as e:
+            logger.warning(f"Cannot access file {file_path}: {e}")
         except (OSError, ValueError) as e:
             logger.warning(f"Could not process file {file_path}: {e}")
 
@@ -654,18 +664,29 @@ class FilesystemScanner:
         for workspace_path in workspace_paths:
             path_obj = Path(workspace_path.root_path)
 
-            if not path_obj.exists():
-                logger.warning(f"Path does not exist: {workspace_path.root_path}")
-                continue
-
             logger.info(f"Scanning {workspace_path.path_type}: {workspace_path.root_path}")
 
             discovered_files = []
 
-            if workspace_path.path_type == 'folder' and path_obj.is_dir():
-                discovered_files = self._scan_directory(path_obj, path_obj)
-            elif workspace_path.path_type == 'file' and path_obj.is_file():
-                discovered_files = self._scan_single_file(path_obj, path_obj.parent)
+            try:
+                if workspace_path.path_type == 'folder':
+                    if path_obj.is_dir():
+                        discovered_files = self._scan_directory(path_obj, path_obj)
+                    else:
+                        logger.warning(f"Expected directory but found different type: {workspace_path.root_path}")
+                        continue
+                elif workspace_path.path_type == 'file':
+                    if path_obj.is_file():
+                        discovered_files = self._scan_single_file(path_obj, path_obj.parent)
+                    else:
+                        logger.warning(f"Expected file but found different type: {workspace_path.root_path}")
+                        continue
+            except (FileNotFoundError, NotADirectoryError, PermissionError) as e:
+                logger.warning(f"Cannot access path {workspace_path.root_path}: {e}")
+                continue
+            except OSError as e:
+                logger.error(f"OS error accessing path {workspace_path.root_path}: {e}")
+                continue
 
             # Add workspace_id to each discovered file and collect for batch insertion
             for file_info in discovered_files:
@@ -752,7 +773,10 @@ class FilesystemScanner:
         removed_count = 0
         for file_entry in current_files:
             file_path = Path(file_entry.absolute_path)
-            if not file_path.exists():
+            try:
+                # Try to stat the file to see if it exists and is accessible
+                file_path.stat()
+            except (FileNotFoundError, NotADirectoryError, PermissionError):
                 logger.debug(f"Removing stale file entry: {file_entry.absolute_path}")
                 FileEntry.delete_by_absolute_path(file_entry.absolute_path)
                 removed_count += 1

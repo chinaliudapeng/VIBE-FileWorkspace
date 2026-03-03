@@ -69,8 +69,12 @@ class WorkspaceFileHandler(FileSystemEventHandler):
                 attrs = ctypes.windll.kernel32.GetFileAttributesW(str(path))
                 if attrs != -1 and bool(attrs & 2):  # FILE_ATTRIBUTE_HIDDEN = 2
                     return True
-            except Exception:
-                pass
+            except OSError as e:
+                logger.debug(f"Windows API error checking hidden attribute for {path}: {e}")
+            except AttributeError as e:
+                logger.warning(f"Windows API not available for hidden attribute check: {e}")
+            except Exception as e:
+                logger.warning(f"Unexpected error checking hidden attribute for {path}: {e}")
                 
         return False
 

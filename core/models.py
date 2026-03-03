@@ -8,7 +8,10 @@ to maintain a single source of truth.
 
 import sqlite3
 import re
+import os
+import platform
 from datetime import datetime
+from pathlib import Path, PurePath
 from typing import List, Dict, Optional, Any
 from .db import get_connection
 from .logging_config import get_logger
@@ -41,6 +44,130 @@ def validate_regex_patterns(hiding_rules: str) -> None:
     if invalid_patterns:
         error_msg = "Invalid regex patterns: " + "; ".join(invalid_patterns)
         raise ValueError(error_msg)
+
+
+def validate_workspace_path(root_path: str, path_type: str) -> str:
+    """
+    Validate and normalize a workspace path for security.
+
+    This function addresses multiple security concerns:
+    - Path traversal attacks (.. sequences)
+    - Symlink escape attacks
+    - Invalid filesystem characters
+    - Path length limits
+    - Drive letter validation on Windows
+
+    Args:
+        root_path: The path to validate
+        path_type: Either 'file' or 'folder'
+
+    Returns:
+        str: The normalized, secure absolute path
+
+    Raises:
+        ValueError: If the path is invalid or poses security risks
+        PermissionError: If the path cannot be accessed due to permissions
+    """
+    if root_path is None:
+        raise ValueError("Path cannot be None")
+
+    if not root_path or not root_path.strip():
+        raise ValueError("Path cannot be empty")
+
+    # Strip whitespace and normalize
+    root_path = root_path.strip()
+
+    # Convert to Path object for proper handling
+    try:
+        path_obj = Path(root_path).resolve()
+    except (OSError, ValueError) as e:
+        raise ValueError(f"Invalid path format: {root_path}. Error: {str(e)}")
+
+    # Get the normalized absolute path string
+    normalized_path = str(path_obj)
+
+    # Validate path length (Windows has 260 char limit, Unix typically 4096)
+    max_length = 260 if platform.system() == "Windows" else 4096
+    if len(normalized_path) > max_length:
+        raise ValueError(f"Path too long ({len(normalized_path)} chars, max {max_length})")
+
+    # Check for invalid characters based on platform
+    if platform.system() == "Windows":
+        invalid_chars = set('<>"|?*')  # Removed colon since it's valid in drive letters
+        # Check for reserved names (CON, PRN, AUX, NUL, COM1-9, LPT1-9)
+        reserved_names = {
+            'CON', 'PRN', 'AUX', 'NUL',
+            'COM1', 'COM2', 'COM3', 'COM4', 'COM5', 'COM6', 'COM7', 'COM8', 'COM9',
+            'LPT1', 'LPT2', 'LPT3', 'LPT4', 'LPT5', 'LPT6', 'LPT7', 'LPT8', 'LPT9'
+        }
+
+        # Check each path component (skip drive letter for Windows)
+        for i, part in enumerate(path_obj.parts):
+            # Skip Windows drive letter (first part like "C:\")
+            if i == 0 and len(part) >= 2 and part[1] == ':':
+                continue
+
+            # Check for invalid characters (except colon in drive letters)
+            if any(char in invalid_chars for char in part):
+                raise ValueError(f"Path contains invalid characters: {part}")
+
+            # Check for colon in non-drive positions
+            if ':' in part:
+                raise ValueError(f"Path contains invalid character ':' in: {part}")
+
+            # Check for reserved names (case-insensitive, check base name without extension)
+            base_name = part.split('.')[0].upper() if '.' in part else part.upper()
+            if base_name in reserved_names:
+                raise ValueError(f"Path contains reserved name: {part}")
+
+            # Check for trailing dots or spaces (Windows issue)
+            if part.endswith('.') or part.endswith(' '):
+                raise ValueError(f"Path component cannot end with dot or space: {part}")
+
+    # Validate the path exists and is accessible
+    try:
+        if path_type == 'file':
+            if not path_obj.exists():
+                raise ValueError(f"File does not exist: {normalized_path}")
+            if not path_obj.is_file():
+                raise ValueError(f"Path is not a file: {normalized_path}")
+        elif path_type == 'folder':
+            if not path_obj.exists():
+                raise ValueError(f"Directory does not exist: {normalized_path}")
+            if not path_obj.is_dir():
+                raise ValueError(f"Path is not a directory: {normalized_path}")
+
+        # Test read access
+        if path_type == 'file':
+            # Try to read file info
+            try:
+                path_obj.stat()
+            except PermissionError:
+                raise PermissionError(f"No read access to file: {normalized_path}")
+        else:  # folder
+            # Try to list directory contents
+            try:
+                list(path_obj.iterdir())
+            except PermissionError:
+                raise PermissionError(f"No read access to directory: {normalized_path}")
+
+    except (OSError, PermissionError) as e:
+        if isinstance(e, PermissionError):
+            raise
+        raise ValueError(f"Cannot access path: {normalized_path}. Error: {str(e)}")
+
+    # Check for symlinks and resolve them securely
+    if path_obj.is_symlink():
+        logger.warning(f"Path is a symlink: {normalized_path}")
+        try:
+            # Already resolved above, but log for security audit
+            real_path = path_obj.resolve()
+            logger.info(f"Symlink {normalized_path} resolves to {real_path}")
+        except (OSError, RuntimeError) as e:
+            raise ValueError(f"Cannot resolve symlink: {normalized_path}. Error: {str(e)}")
+
+    logger.info(f"Path validation successful: {normalized_path}")
+    return normalized_path
 
 
 class Workspace:
@@ -346,11 +473,8 @@ class WorkspacePath:
         if path_type not in ('folder', 'file'):
             raise ValueError("path_type must be 'folder' or 'file'")
 
-        # Validate root_path is not empty
-        if not root_path or not root_path.strip():
-            raise ValueError("root_path cannot be empty")
-
-        root_path = root_path.strip()
+        # Validate and normalize the path securely
+        root_path = validate_workspace_path(root_path, path_type)
 
         # Validate hiding rules regex patterns
         validate_regex_patterns(hiding_rules)

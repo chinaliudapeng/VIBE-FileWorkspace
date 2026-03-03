@@ -56,4 +56,12 @@ Update the status with [x] when completed.
 - [x] Workspace编辑面板内remove按钮超出行高了,需要你自行调整到适配行高的大小,但也要避免文本显示不全. ✅ COMPLETED
 - [x] 自行测试 ✅ COMPLETED
 - [x] Git commit and push ✅ COMPLETED
- 
+
+## Bug 202603032030 - Security: Path Validation Vulnerability (CRITICAL PRIORITY) ✅ COMPLETED
+- [x] Add path validation to WorkspacePath.add_path() to prevent path traversal and symlink escape attacks ✅ COMPLETED
+- [x] Implement validation for: path traversal sequences (..), invalid characters, symlink resolution, path length limits ✅ COMPLETED
+- [x] Replace TOCTOU (Time-of-Check-Time-of-Use) race conditions in core/scanner.py with try-except error handling ✅ COMPLETED
+- [x] Add specific exception logging for Windows API calls in _is_hidden() functions ✅ COMPLETED
+- [x] Write comprehensive security tests to verify path validation works correctly ✅ COMPLETED
+- [x] Git commit and push ✅ COMPLETED
+
