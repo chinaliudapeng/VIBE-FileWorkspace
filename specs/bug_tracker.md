@@ -101,3 +101,12 @@ Update the status with [x] when completed.
   - Widened remove button column by 50 pixels (from 70px to 120px width)
 - [x] 自行测试 ✅ COMPLETED
 - [x] Git commit and push ✅ COMPLETED
+
+## Bug 202603052007 - workspace编辑面板移除remove_btn所在的容器背景颜色 ✅ COMPLETED
+- [x] 解决界面上的显示问题 ✅ COMPLETED
+  - Fixed by adding `container.setStyleSheet("background-color: transparent;")` to remove button container in WorkspaceDialog
+  - Container widget now has transparent background, removing unwanted background color
+- [x] 自行测试 ✅ COMPLETED
+  - GUI integration tests pass (15/15 tests)
+  - GUI workflow tests pass (1/1 test)
+- [x] Git commit and push ✅ COMPLETED

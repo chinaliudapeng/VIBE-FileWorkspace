@@ -235,6 +235,7 @@ class WorkspaceDialog(QDialog):
 
             # Remove button column
             container = QWidget()
+            container.setStyleSheet("background-color: transparent;")  # Remove container background color
             layout = QHBoxLayout(container)
             layout.setContentsMargins(3, 2, 3, 2) # Reduced margins to fit within 40px row height
             layout.setAlignment(Qt.AlignCenter)
