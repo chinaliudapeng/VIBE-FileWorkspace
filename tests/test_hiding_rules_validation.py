@@ -92,7 +92,8 @@ class TestHidingRulesValidation(unittest.TestCase):
                 workspace_id=self.workspace.id,
                 root_path="/test/path",
                 path_type="folder",
-                hiding_rules=invalid_rule
+                hiding_rules=invalid_rule,
+                check_existence=False
             )
 
         # Error should mention invalid regex
@@ -108,7 +109,8 @@ class TestHidingRulesValidation(unittest.TestCase):
             workspace_id=self.workspace.id,
             root_path="/test/path",
             path_type="folder",
-            hiding_rules=valid_rules
+            hiding_rules=valid_rules,
+            check_existence=False
         )
 
         self.assertEqual(workspace_path.hiding_rules, valid_rules)
@@ -120,7 +122,8 @@ class TestHidingRulesValidation(unittest.TestCase):
             workspace_id=self.workspace.id,
             root_path="/test/path",
             path_type="folder",
-            hiding_rules="valid_pattern"
+            hiding_rules="valid_pattern",
+            check_existence=False
         )
 
         # Try to update with invalid rules
@@ -138,7 +141,8 @@ class TestHidingRulesValidation(unittest.TestCase):
             workspace_id=self.workspace.id,
             root_path="/test/path",
             path_type="folder",
-            hiding_rules="old_pattern"
+            hiding_rules="old_pattern",
+            check_existence=False
         )
 
         # Update with valid rules
@@ -225,7 +229,8 @@ class TestHidingRulesValidation(unittest.TestCase):
             workspace_id=self.workspace.id,
             root_path="/complex/test",
             path_type="folder",
-            hiding_rules=combined_pattern
+            hiding_rules=combined_pattern,
+            check_existence=False
         )
 
         self.assertEqual(workspace_path.hiding_rules, combined_pattern)

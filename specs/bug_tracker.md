@@ -65,3 +65,11 @@ Update the status with [x] when completed.
 - [x] Write comprehensive security tests to verify path validation works correctly ✅ COMPLETED
 - [x] Git commit and push ✅ COMPLETED
 
+## Bug 202603031537 - Test Suite Failures Due to Strict Path Validation (CRITICAL PRIORITY) ✅ COMPLETED
+- [x] Path validation from Bug 202603032030 is too strict for test cases using non-existent mock paths (e.g., `/test/bulk`, `/test/path`) ✅ COMPLETED
+- [x] Multiple test failures in test_bulk_tag_loading.py, test_gui_delegates.py, test_gui_models.py due to `Directory does not exist` validation errors ✅ COMPLETED
+- [x] Need to implement test-friendly path validation that allows mock paths during testing while maintaining security in production ✅ COMPLETED
+- [x] Fix all affected test files to work with new validation approach ✅ COMPLETED
+- [x] Run comprehensive test suite to ensure all tests pass for mentioned modules ✅ COMPLETED
+- [x] Git commit and push ✅ COMPLETED
+

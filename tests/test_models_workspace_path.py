@@ -49,7 +49,8 @@ class TestWorkspacePathModel:
         workspace_path = WorkspacePath.add_path(
             sample_workspace.id,
             "/path/to/folder",
-            "folder"
+            "folder",
+            check_existence=False
         )
 
         assert workspace_path.id is not None
@@ -62,7 +63,8 @@ class TestWorkspacePathModel:
         workspace_path = WorkspacePath.add_path(
             sample_workspace.id,
             "/path/to/file.txt",
-            "file"
+            "file",
+            check_existence=False
         )
 
         assert workspace_path.id is not None
@@ -76,7 +78,8 @@ class TestWorkspacePathModel:
             WorkspacePath.add_path(
                 sample_workspace.id,
                 "/path/to/something",
-                "invalid"
+                "invalid",
+                check_existence=False
             )
 
     def test_add_path_empty_path_fails(self, sample_workspace):
@@ -85,7 +88,8 @@ class TestWorkspacePathModel:
             WorkspacePath.add_path(
                 sample_workspace.id,
                 "",
-                "folder"
+                "folder",
+                check_existence=False
             )
 
     def test_add_path_whitespace_path_fails(self, sample_workspace):
@@ -94,7 +98,8 @@ class TestWorkspacePathModel:
             WorkspacePath.add_path(
                 sample_workspace.id,
                 "   \t\n   ",
-                "folder"
+                "folder",
+                check_existence=False
             )
 
     def test_add_path_nonexistent_workspace_fails(self, temp_db):
@@ -103,7 +108,8 @@ class TestWorkspacePathModel:
             WorkspacePath.add_path(
                 99999,
                 "/path/to/folder",
-                "folder"
+                "folder",
+                check_existence=False
             )
 
     def test_add_path_duplicate_fails(self, sample_workspace):
@@ -111,14 +117,16 @@ class TestWorkspacePathModel:
         WorkspacePath.add_path(
             sample_workspace.id,
             "/duplicate/path",
-            "folder"
+            "folder",
+            check_existence=False
         )
 
         with pytest.raises(sqlite3.IntegrityError):
             WorkspacePath.add_path(
                 sample_workspace.id,
                 "/duplicate/path",
-                "file"  # Same path, different type should still fail
+                "file",  # Same path, different type should still fail
+                check_existence=False
             )
 
     def test_add_path_whitespace_trimming(self, sample_workspace):

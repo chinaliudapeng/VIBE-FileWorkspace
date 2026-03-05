@@ -59,7 +59,8 @@ class TestBulkTagLoading(unittest.TestCase):
         self.workspace_path = WorkspacePath.add_path(
             workspace_id=self.workspace.id,
             root_path="/test/bulk",
-            path_type="folder"
+            path_type="folder",
+            check_existence=False
         )
 
         # Create multiple file entries

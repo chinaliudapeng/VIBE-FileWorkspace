@@ -42,7 +42,7 @@ def sample_data(temp_db):
     workspace = Workspace.create("Test Workspace")
 
     # Add a workspace path
-    workspace_path = WorkspacePath.add_path(workspace.id, "/test/path", "folder")
+    workspace_path = WorkspacePath.add_path(workspace.id, "/test/path", "folder", check_existence=False)
 
     # Manually insert file entries since FileEntry model doesn't exist yet
     conn = get_connection()

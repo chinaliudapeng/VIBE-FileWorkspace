@@ -483,7 +483,7 @@ class TestFilesystemScanner(unittest.TestCase):
     def test_scan_workspace_paths_nonexistent_path(self):
         """Test scanning with non-existent paths."""
         # Add non-existent path
-        WorkspacePath.add_path(self.workspace.id, "/nonexistent/path", "folder")
+        WorkspacePath.add_path(self.workspace.id, "/nonexistent/path", "folder", check_existence=False)
 
         scanner = FilesystemScanner(self.workspace.id)
         files_added = scanner.scan_workspace_paths()

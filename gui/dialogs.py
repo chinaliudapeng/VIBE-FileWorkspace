@@ -120,7 +120,11 @@ class WorkspaceDialog(QDialog):
         header.setSectionResizeMode(0, QHeaderView.ResizeToContents)  # Type column
         header.setSectionResizeMode(1, QHeaderView.Stretch)          # Path column
         header.setSectionResizeMode(2, QHeaderView.ResizeToContents)  # Hiding rules column
-        header.setSectionResizeMode(3, QHeaderView.ResizeToContents)  # Remove button column
+        
+        # Remove button column
+        # Fixed width prevents cell content from overflowing due to layout padding adjustments
+        header.setSectionResizeMode(3, QHeaderView.Fixed)
+        self.paths_table.setColumnWidth(3, 70) 
 
         self.paths_table.verticalHeader().setVisible(False)
         self.paths_table.verticalHeader().setDefaultSectionSize(40)  # increased row height to fit buttons and pills comfortably
@@ -230,13 +234,20 @@ class WorkspaceDialog(QDialog):
             self.paths_table.setCellWidget(row, 2, hiding_rules_widget)
 
             # Remove button column
+            container = QWidget()
+            layout = QHBoxLayout(container)
+            layout.setContentsMargins(5, 5, 5, 5) # Provide equal breathing room
+            layout.setAlignment(Qt.AlignCenter)
+            
             remove_btn = QPushButton("Remove")
             remove_btn.setObjectName("dangerButton")
-            remove_btn.setMinimumWidth(60)   # optimized width for text visibility, reduced to prevent exceeding cell
-            remove_btn.setMinimumHeight(28)  # fits nicely in 40px row
+            remove_btn.setMinimumWidth(50)   # optimized width for text visibility
+            remove_btn.setMinimumHeight(24)  # Reduced slightly to ensure it doesn't clip
             remove_btn.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
             remove_btn.clicked.connect(lambda checked, r=row: self.remove_path(r))
-            self.paths_table.setCellWidget(row, 3, remove_btn)
+            
+            layout.addWidget(remove_btn)
+            self.paths_table.setCellWidget(row, 3, container)
 
     def remove_path(self, row: int):
         """Remove a path from the workspace."""
@@ -448,12 +459,31 @@ class WorkspaceDialog(QDialog):
                 background-color: {danger_color};
                 border: none;
                 border-radius: 4px;
-                padding: 4px 12px;
+                padding: 4px 8px;
                 color: white;
                 font-size: 13px;
-                min-width: 70px;
+                min-width: 50px;
                 font-weight: 500;
                 text-align: center;
+            }}
+
+            /* Table Edit buttons */
+            QPushButton#tableEditButton {{
+                background-color: {bg_tertiary};
+                border: 1px solid {border_color};
+                border-radius: 6px;
+                padding: 4px 12px;
+                color: {text_primary};
+                font-size: 13px;
+            }}
+
+            QPushButton#tableEditButton:hover {{
+                background-color: {hover_color};
+                border-color: {accent_blue};
+            }}
+
+            QPushButton#tableEditButton:pressed {{
+                background-color: {bg_secondary};
             }}
 
             QPushButton#dangerButton:hover {{
@@ -724,10 +754,10 @@ class HidingRulesPillWidget(QWidget):
 
         # Add "Edit" button
         edit_btn = QPushButton("Edit...")
-        edit_btn.setObjectName("secondaryButton")
+        edit_btn.setObjectName("tableEditButton")
         edit_btn.clicked.connect(self.edit_hiding_rules)
         # Size constraints to fit properly in 40px table row, matching Remove button size
-        edit_btn.setMinimumWidth(60)   # Matches optimized Remove button width for consistency
+        edit_btn.setMinimumWidth(50)   # Matches optimized Remove button width for consistency
         edit_btn.setMinimumHeight(28)  # Fits nicely in 40px row
         edit_btn.setMaximumHeight(32)  # Prevent exceeding row height
         edit_btn.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
