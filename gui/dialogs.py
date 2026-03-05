@@ -43,8 +43,8 @@ class WorkspaceDialog(QDialog):
         title = "Edit Workspace" if self.workspace else "New Workspace"
         self.setWindowTitle(title)
         self.setModal(True)
-        self.setMinimumSize(QSize(600, 500))
-        self.resize(700, 600)
+        self.setMinimumSize(QSize(650, 500))
+        self.resize(750, 600)
 
         # Main layout
         main_layout = QVBoxLayout(self)
@@ -124,7 +124,7 @@ class WorkspaceDialog(QDialog):
         # Remove button column
         # Fixed width prevents cell content from overflowing due to layout padding adjustments
         header.setSectionResizeMode(3, QHeaderView.Fixed)
-        self.paths_table.setColumnWidth(3, 70) 
+        self.paths_table.setColumnWidth(3, 120) 
 
         self.paths_table.verticalHeader().setVisible(False)
         self.paths_table.verticalHeader().setDefaultSectionSize(40)  # increased row height to fit buttons and pills comfortably
