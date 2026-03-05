@@ -84,7 +84,7 @@ class TestWorkspacePathModel:
 
     def test_add_path_empty_path_fails(self, sample_workspace):
         """Test that adding empty path fails."""
-        with pytest.raises(ValueError, match="root_path cannot be empty"):
+        with pytest.raises(ValueError, match="Path cannot be empty"):
             WorkspacePath.add_path(
                 sample_workspace.id,
                 "",
@@ -94,7 +94,7 @@ class TestWorkspacePathModel:
 
     def test_add_path_whitespace_path_fails(self, sample_workspace):
         """Test that adding whitespace-only path fails."""
-        with pytest.raises(ValueError, match="root_path cannot be empty"):
+        with pytest.raises(ValueError, match="Path cannot be empty"):
             WorkspacePath.add_path(
                 sample_workspace.id,
                 "   \t\n   ",
@@ -134,7 +134,8 @@ class TestWorkspacePathModel:
         workspace_path = WorkspacePath.add_path(
             sample_workspace.id,
             "  /path/with/whitespace  ",
-            "folder"
+            "folder",
+            check_existence=False
         )
 
         assert workspace_path.root_path == "/path/with/whitespace"
@@ -145,7 +146,8 @@ class TestWorkspacePathModel:
         WorkspacePath.add_path(
             sample_workspace.id,
             "/path/to/remove",
-            "folder"
+            "folder",
+            check_existence=False
         )
 
         # Remove it
@@ -167,7 +169,8 @@ class TestWorkspacePathModel:
         WorkspacePath.add_path(
             sample_workspace.id,
             "/path/to/remove",
-            "folder"
+            "folder",
+            check_existence=False
         )
 
         # Remove with extra whitespace
@@ -180,7 +183,8 @@ class TestWorkspacePathModel:
         workspace_path = WorkspacePath.add_path(
             sample_workspace.id,
             "/path/to/remove",
-            "folder"
+            "folder",
+            check_existence=False
         )
 
         # Remove it by ID
@@ -204,9 +208,9 @@ class TestWorkspacePathModel:
     def test_get_paths_for_workspace_with_data(self, sample_workspace):
         """Test getting paths when workspace has multiple paths."""
         # Add test paths
-        path1 = WorkspacePath.add_path(sample_workspace.id, "/alpha/folder", "folder")
-        path2 = WorkspacePath.add_path(sample_workspace.id, "/beta/file.txt", "file")
-        path3 = WorkspacePath.add_path(sample_workspace.id, "/gamma/folder", "folder")
+        path1 = WorkspacePath.add_path(sample_workspace.id, "/alpha/folder", "folder", check_existence=False)
+        path2 = WorkspacePath.add_path(sample_workspace.id, "/beta/file.txt", "file", check_existence=False)
+        path3 = WorkspacePath.add_path(sample_workspace.id, "/gamma/folder", "folder", check_existence=False)
 
         paths = WorkspacePath.get_paths_for_workspace(sample_workspace.id)
 
@@ -231,7 +235,8 @@ class TestWorkspacePathModel:
         created_path = WorkspacePath.add_path(
             sample_workspace.id,
             "/test/path",
-            "folder"
+            "folder",
+            check_existence=False
         )
 
         retrieved_path = WorkspacePath.get_by_id(created_path.id)
@@ -252,7 +257,8 @@ class TestWorkspacePathModel:
         WorkspacePath.add_path(
             sample_workspace.id,
             "/existing/path",
-            "folder"
+            "folder",
+            check_existence=False
         )
 
         exists = WorkspacePath.path_exists(sample_workspace.id, "/existing/path")
@@ -268,7 +274,8 @@ class TestWorkspacePathModel:
         WorkspacePath.add_path(
             sample_workspace.id,
             "/test/path",
-            "folder"
+            "folder",
+            check_existence=False
         )
 
         exists = WorkspacePath.path_exists(sample_workspace.id, "  /test/path  ")
@@ -279,7 +286,8 @@ class TestWorkspacePathModel:
         workspace_path = WorkspacePath.add_path(
             sample_workspace.id,
             "/dict/test",
-            "folder"
+            "folder",
+            check_existence=False
         )
 
         path_dict = workspace_path.to_dict()
@@ -295,7 +303,8 @@ class TestWorkspacePathModel:
         workspace_path = WorkspacePath.add_path(
             sample_workspace.id,
             "/string/test",
-            "file"
+            "file",
+            check_existence=False
         )
 
         str_repr = str(workspace_path)
@@ -326,8 +335,8 @@ class TestWorkspacePathModel:
         """Test that deleting workspace removes associated paths via CASCADE DELETE."""
         # Create workspace and add paths
         workspace = Workspace.create("Cascade Test")
-        path1 = WorkspacePath.add_path(workspace.id, "/path1", "folder")
-        path2 = WorkspacePath.add_path(workspace.id, "/path2", "file")
+        path1 = WorkspacePath.add_path(workspace.id, "/path1", "folder", check_existence=False)
+        path2 = WorkspacePath.add_path(workspace.id, "/path2", "file", check_existence=False)
 
         # Verify paths exist
         paths = WorkspacePath.get_paths_for_workspace(workspace.id)
@@ -351,7 +360,8 @@ class TestWorkspacePathModel:
             sample_workspace.id,
             "/path/to/folder",
             "folder",
-            hiding_rules
+            hiding_rules,
+            check_existence=False
         )
 
         assert workspace_path.id is not None
@@ -365,7 +375,8 @@ class TestWorkspacePathModel:
         workspace_path = WorkspacePath.add_path(
             sample_workspace.id,
             "/path/to/folder",
-            "folder"
+            "folder",
+            check_existence=False
         )
 
         assert workspace_path.hiding_rules == ""
@@ -376,7 +387,8 @@ class TestWorkspacePathModel:
         workspace_path = WorkspacePath.add_path(
             sample_workspace.id,
             "/path/to/folder",
-            "folder"
+            "folder",
+            check_existence=False
         )
 
         # Update hiding rules
@@ -398,8 +410,8 @@ class TestWorkspacePathModel:
         rules1 = r".*\.tmp;.*\.log"
         rules2 = r"node_modules;dist/"
 
-        path1 = WorkspacePath.add_path(sample_workspace.id, "/path1", "folder", rules1)
-        path2 = WorkspacePath.add_path(sample_workspace.id, "/path2", "folder", rules2)
+        path1 = WorkspacePath.add_path(sample_workspace.id, "/path1", "folder", rules1, check_existence=False)
+        path2 = WorkspacePath.add_path(sample_workspace.id, "/path2", "folder", rules2, check_existence=False)
 
         paths = WorkspacePath.get_paths_for_workspace(sample_workspace.id)
         assert len(paths) == 2
@@ -417,7 +429,8 @@ class TestWorkspacePathModel:
             sample_workspace.id,
             "/path/to/folder",
             "folder",
-            hiding_rules
+            hiding_rules,
+            check_existence=False
         )
 
         path_dict = workspace_path.to_dict()

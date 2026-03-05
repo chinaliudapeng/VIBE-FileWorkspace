@@ -176,7 +176,7 @@ class TestPathValidationSecurity:
         for name in problematic_names:
             invalid_path = f"{base_path}/{name}"
             with pytest.raises(ValueError, match="cannot end with dot or space"):
-                validate_workspace_path(invalid_path, 'file')
+                validate_workspace_path(invalid_path, 'file', check_existence=False)
 
     def test_nonexistent_path_rejection(self):
         """Test that nonexistent paths are rejected."""
@@ -274,10 +274,10 @@ class TestPathValidationSecurity:
     def test_race_condition_mitigation(self):
         """Test that validation handles race conditions properly."""
         # This tests the TOCTOU fix by mocking file system operations
-        with patch('pathlib.Path.is_file') as mock_is_file:
-            mock_is_file.side_effect = [True, FileNotFoundError("File disappeared")]
+        with patch.object(Path, 'is_file') as mock_is_file:
+            mock_is_file.side_effect = FileNotFoundError("File disappeared")
 
-            # The first call to is_file() returns True, second call raises FileNotFoundError
+            # When is_file() raises FileNotFoundError, it should be caught and converted
             with pytest.raises(ValueError, match="Cannot access path"):
                 validate_workspace_path(str(self.test_file), 'file')
 

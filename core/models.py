@@ -74,16 +74,41 @@ def validate_workspace_path(root_path: str, path_type: str, check_existence: boo
         raise ValueError("Path cannot be None")
 
     if not root_path or not root_path.strip():
-        raise ValueError("root_path cannot be empty")
+        raise ValueError("Path cannot be empty")
 
-    # Strip whitespace and normalize
+    # Strip leading/trailing whitespace from the entire path first
     root_path = root_path.strip()
+
+    # Check for trailing dots or spaces in path components AFTER overall trimming (Windows issue)
+    if platform.system() == "Windows":
+        # Split path to check each component for trailing dots/spaces
+        path_parts = root_path.replace('\\', '/').split('/')
+        for part in path_parts:
+            # Skip empty parts and legitimate navigation components
+            if part and part not in ('.', '..') and (part.endswith('.') or part.endswith(' ')):
+                raise ValueError("Path component cannot end with dot or space")
+
+    # Check for trailing dots or spaces AFTER trimming (Windows issue)
+    if platform.system() == "Windows":
+        # Split path to check each component for trailing dots/spaces
+        path_parts = root_path.replace('\\', '/').split('/')
+        for part in path_parts:
+            # Skip empty parts and legitimate navigation components
+            if part and part not in ('.', '..') and (part.endswith('.') or part.endswith(' ')):
+                raise ValueError("Path component cannot end with dot or space")
+
+    # Detect path traversal attacks before normalization
+    if '..' in root_path:
+        # Check if this is a legitimate relative path or a potential traversal attack
+        path_parts = root_path.replace('\\', '/').split('/')
+        if any(part == '..' for part in path_parts):
+            raise ValueError("Invalid path format")
 
     # For testing with mock paths, do minimal validation but preserve original format
     if not check_existence:
         # Basic validation for empty path (already checked above, but for safety)
         if not root_path:
-            raise ValueError("root_path cannot be empty")
+            raise ValueError("Path cannot be empty")
 
         # Basic character validation - only check for null bytes which are never valid
         if '\x00' in root_path:
@@ -126,34 +151,39 @@ def validate_workspace_path(root_path: str, path_type: str, check_existence: boo
 
             # Check for invalid characters (except colon in drive letters)
             if any(char in invalid_chars for char in part):
-                raise ValueError(f"Path contains invalid characters: {part}")
+                raise ValueError("Path contains invalid characters")
 
             # Check for colon in non-drive positions
             if ':' in part:
-                raise ValueError(f"Path contains invalid character ':' in: {part}")
+                raise ValueError("Path contains invalid characters")
 
             # Check for reserved names (case-insensitive, check base name without extension)
             base_name = part.split('.')[0].upper() if '.' in part else part.upper()
             if base_name in reserved_names:
                 raise ValueError(f"Path contains reserved name: {part}")
 
-            # Check for trailing dots or spaces (Windows issue)
-            if part.endswith('.') or part.endswith(' '):
-                raise ValueError(f"Path component cannot end with dot or space: {part}")
 
     # Validate the path exists and is accessible (if check_existence is True)
     if check_existence:
         try:
             if path_type == 'file':
                 if not path_obj.exists():
-                    raise ValueError(f"File does not exist: {normalized_path}")
-                if not path_obj.is_file():
-                    raise ValueError(f"Path is not a file: {normalized_path}")
+                    raise ValueError("File does not exist")
+                try:
+                    if not path_obj.is_file():
+                        raise ValueError("Path is not a file")
+                except FileNotFoundError:
+                    # Handle race condition where file disappeared between exists() and is_file() checks
+                    raise ValueError("Cannot access path")
             elif path_type == 'folder':
                 if not path_obj.exists():
-                    raise ValueError(f"Directory does not exist: {normalized_path}")
-                if not path_obj.is_dir():
-                    raise ValueError(f"Path is not a directory: {normalized_path}")
+                    raise ValueError("Directory does not exist")
+                try:
+                    if not path_obj.is_dir():
+                        raise ValueError("Path is not a directory")
+                except FileNotFoundError:
+                    # Handle race condition where directory disappeared between exists() and is_dir() checks
+                    raise ValueError("Cannot access path")
 
             # Test read access
             if path_type == 'file':
@@ -169,7 +199,7 @@ def validate_workspace_path(root_path: str, path_type: str, check_existence: boo
                 except PermissionError:
                     raise PermissionError(f"No read access to directory: {normalized_path}")
 
-        except (OSError, PermissionError) as e:
+        except (OSError, PermissionError, FileNotFoundError) as e:
             if isinstance(e, PermissionError):
                 raise
             raise ValueError(f"Cannot access path: {normalized_path}. Error: {str(e)}")
