@@ -20,6 +20,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from core.models import Workspace, WorkspacePath, Tag
 from core.scanner import FileEntry
 from core.db import get_connection, ensure_database_initialized
+from core.analytics import WorkspaceAnalytics
 
 
 def output_json(data: Any, error: bool = False) -> None:
@@ -347,6 +348,58 @@ def search(keyword: Optional[str], tags: Optional[str], workspace: Optional[str]
 
     except Exception as e:
         handle_error(f"Search failed: {str(e)}")
+
+
+@cli.command()
+@click.option('--workspace', '-w', help='Get detailed stats for specific workspace (by name)')
+@click.option('--type', '-t', 'stats_type',
+              type=click.Choice(['comprehensive', 'database', 'workspaces', 'files', 'tags']),
+              default='comprehensive',
+              help='Type of statistics to retrieve (default: comprehensive)')
+def stats(workspace: Optional[str], stats_type: str):
+    """
+    Get comprehensive statistics and analytics about workspaces, files, and tags.
+
+    Provides detailed insights into workspace usage, file distributions,
+    tag statistics, and database metrics.
+    """
+    try:
+        if workspace:
+            # Get detailed statistics for a specific workspace
+            workspaces = Workspace.list_all()
+            target_workspace = None
+            for ws in workspaces:
+                if ws.name == workspace:
+                    target_workspace = ws
+                    break
+
+            if not target_workspace:
+                handle_error(f"Workspace '{workspace}' not found")
+
+            stats_data = WorkspaceAnalytics.get_workspace_detailed_stats(target_workspace.id)
+        else:
+            # Get statistics based on type
+            if stats_type == 'comprehensive':
+                stats_data = WorkspaceAnalytics.get_comprehensive_stats()
+            elif stats_type == 'database':
+                stats_data = WorkspaceAnalytics.get_database_stats()
+            elif stats_type == 'workspaces':
+                stats_data = WorkspaceAnalytics.get_workspace_stats()
+            elif stats_type == 'files':
+                stats_data = WorkspaceAnalytics.get_file_type_stats()
+            elif stats_type == 'tags':
+                stats_data = WorkspaceAnalytics.get_tag_stats()
+            else:
+                # Fallback (should not reach here due to click.Choice)
+                stats_data = WorkspaceAnalytics.get_comprehensive_stats()
+
+        output_json({
+            "statistics_type": f"workspace_{workspace}" if workspace else stats_type,
+            "statistics": stats_data
+        })
+
+    except Exception as e:
+        handle_error(f"Failed to generate statistics: {str(e)}")
 
 
 if __name__ == '__main__':

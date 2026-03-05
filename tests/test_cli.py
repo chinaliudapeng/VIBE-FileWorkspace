@@ -381,6 +381,142 @@ class TestCLI(unittest.TestCase):
             self.assertIn('name', workspace)
             self.assertIn('created_at', workspace)
 
+    @patch('core.analytics.WorkspaceAnalytics.get_comprehensive_stats')
+    def test_stats_comprehensive(self, mock_get_stats):
+        """Test stats command with comprehensive type."""
+        mock_get_stats.return_value = {
+            "summary": {
+                "total_workspaces": 2,
+                "total_files": 10,
+                "total_unique_tags": 5,
+                "database_size_mb": 1.5,
+                "tag_coverage": "80.0%"
+            },
+            "database": {"total_records": 20},
+            "workspaces": {"total_workspaces": 2},
+            "file_types": {"total_files": 10},
+            "tags": {"total_unique_tags": 5}
+        }
+
+        result = self.runner.invoke(cli, ['stats'])
+
+        self.assertEqual(result.exit_code, 0)
+        response = json.loads(result.output)
+        self.assertTrue(response['success'])
+
+        data = response['data']
+        self.assertEqual(data['statistics_type'], 'comprehensive')
+        self.assertIn('statistics', data)
+        self.assertEqual(data['statistics']['summary']['total_workspaces'], 2)
+
+    @patch('core.analytics.WorkspaceAnalytics.get_database_stats')
+    def test_stats_database_type(self, mock_get_stats):
+        """Test stats command with database type."""
+        mock_get_stats.return_value = {
+            "database_size_mb": 2.0,
+            "total_records": 25,
+            "table_counts": {
+                "workspace": 2,
+                "file_entry": 15,
+                "tags": 8
+            }
+        }
+
+        result = self.runner.invoke(cli, ['stats', '--type', 'database'])
+
+        self.assertEqual(result.exit_code, 0)
+        response = json.loads(result.output)
+        self.assertTrue(response['success'])
+
+        data = response['data']
+        self.assertEqual(data['statistics_type'], 'database')
+        self.assertEqual(data['statistics']['database_size_mb'], 2.0)
+
+    @patch('core.analytics.WorkspaceAnalytics.get_workspace_detailed_stats')
+    def test_stats_specific_workspace(self, mock_get_stats):
+        """Test stats command for specific workspace."""
+        # The workspace is created in setUp
+        mock_get_stats.return_value = {
+            "workspace": {
+                "id": self.workspace.id,
+                "name": self.workspace.name,
+                "created_at": "2024-01-01 10:00:00"
+            },
+            "file_statistics": {
+                "total_files": 5,
+                "total_size_mb": 1.2
+            }
+        }
+
+        result = self.runner.invoke(cli, ['stats', '--workspace', self.workspace.name])
+
+        self.assertEqual(result.exit_code, 0)
+        response = json.loads(result.output)
+        self.assertTrue(response['success'])
+
+        data = response['data']
+        self.assertEqual(data['statistics_type'], f'workspace_{self.workspace.name}')
+        self.assertEqual(data['statistics']['workspace']['name'], self.workspace.name)
+
+    def test_stats_workspace_not_found(self):
+        """Test stats command with non-existent workspace."""
+        result = self.runner.invoke(cli, ['stats', '--workspace', 'NonExistent'])
+
+        self.assertEqual(result.exit_code, 1)
+        response = json.loads(result.output)
+        self.assertFalse(response['success'])
+        self.assertIn("Workspace 'NonExistent' not found", response['error'])
+
+    @patch('core.analytics.WorkspaceAnalytics.get_file_type_stats')
+    def test_stats_files_type(self, mock_get_stats):
+        """Test stats command with files type."""
+        mock_get_stats.return_value = {
+            "total_files": 12,
+            "unique_file_types": 6,
+            "file_type_distribution": [
+                {"file_type": "py", "count": 5, "percentage": 41.67},
+                {"file_type": "js", "count": 3, "percentage": 25.0},
+                {"file_type": "md", "count": 2, "percentage": 16.67}
+            ]
+        }
+
+        result = self.runner.invoke(cli, ['stats', '--type', 'files'])
+
+        self.assertEqual(result.exit_code, 0)
+        response = json.loads(result.output)
+        self.assertTrue(response['success'])
+
+        data = response['data']
+        self.assertEqual(data['statistics_type'], 'files')
+        self.assertEqual(data['statistics']['total_files'], 12)
+        self.assertEqual(len(data['statistics']['file_type_distribution']), 3)
+
+    @patch('core.analytics.WorkspaceAnalytics.get_tag_stats')
+    def test_stats_tags_type(self, mock_get_stats):
+        """Test stats command with tags type."""
+        mock_get_stats.return_value = {
+            "total_unique_tags": 8,
+            "total_tag_instances": 25,
+            "files_with_tags": 10,
+            "files_without_tags": 2,
+            "tag_coverage_percentage": 83.33,
+            "most_used_tags": [
+                {"tag_name": "python", "usage_count": 8, "percentage": 32.0},
+                {"tag_name": "script", "usage_count": 5, "percentage": 20.0}
+            ]
+        }
+
+        result = self.runner.invoke(cli, ['stats', '--type', 'tags'])
+
+        self.assertEqual(result.exit_code, 0)
+        response = json.loads(result.output)
+        self.assertTrue(response['success'])
+
+        data = response['data']
+        self.assertEqual(data['statistics_type'], 'tags')
+        self.assertEqual(data['statistics']['total_unique_tags'], 8)
+        self.assertEqual(data['statistics']['tag_coverage_percentage'], 83.33)
+
 
 if __name__ == '__main__':
     unittest.main()
