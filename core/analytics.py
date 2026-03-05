@@ -110,7 +110,7 @@ class WorkspaceAnalytics:
                     "path_count": len(paths),
                     "total_size_bytes": total_size,
                     "total_size_mb": round(total_size / (1024 * 1024), 2),
-                    "paths": [{"path": p.root_path, "type": p.type, "hiding_rules": p.hiding_rules} for p in paths]
+                    "paths": [{"path": p.root_path, "type": p.path_type, "hiding_rules": p.hiding_rules} for p in paths]
                 }
 
                 workspace_data.append(workspace_info)
@@ -357,7 +357,7 @@ class WorkspaceAnalytics:
                     "paths": [
                         {
                             "path": p.root_path,
-                            "type": p.type,
+                            "type": p.path_type,
                             "hiding_rules": p.hiding_rules
                         }
                         for p in paths
