@@ -236,13 +236,14 @@ class WorkspaceDialog(QDialog):
             # Remove button column
             container = QWidget()
             layout = QHBoxLayout(container)
-            layout.setContentsMargins(5, 5, 5, 5) # Provide equal breathing room
+            layout.setContentsMargins(3, 2, 3, 2) # Reduced margins to fit within 40px row height
             layout.setAlignment(Qt.AlignCenter)
-            
+
             remove_btn = QPushButton("Remove")
             remove_btn.setObjectName("dangerButton")
-            remove_btn.setMinimumWidth(50)   # optimized width for text visibility
-            remove_btn.setMinimumHeight(24)  # Reduced slightly to ensure it doesn't clip
+            remove_btn.setMinimumWidth(48)   # Slightly reduced width while maintaining text visibility
+            remove_btn.setMinimumHeight(20)  # Reduced height to fit within 40px row (20 + 4 margins + 8 CSS padding = 32px)
+            remove_btn.setMaximumHeight(20)  # Prevent button from expanding beyond intended size
             remove_btn.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
             remove_btn.clicked.connect(lambda checked, r=row: self.remove_path(r))
             
@@ -757,9 +758,9 @@ class HidingRulesPillWidget(QWidget):
         edit_btn.setObjectName("tableEditButton")
         edit_btn.clicked.connect(self.edit_hiding_rules)
         # Size constraints to fit properly in 40px table row, matching Remove button size
-        edit_btn.setMinimumWidth(50)   # Matches optimized Remove button width for consistency
-        edit_btn.setMinimumHeight(28)  # Fits nicely in 40px row
-        edit_btn.setMaximumHeight(32)  # Prevent exceeding row height
+        edit_btn.setMinimumWidth(48)   # Match updated Remove button width for consistency
+        edit_btn.setMinimumHeight(20)  # Match updated Remove button height
+        edit_btn.setMaximumHeight(20)  # Prevent exceeding row height like Remove button
         edit_btn.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         layout.addWidget(edit_btn)
 
@@ -770,11 +771,12 @@ class HidingRulesPillWidget(QWidget):
         pill = QFrame()
         pill.setObjectName("rulePillContainer")
         pill_layout = QHBoxLayout(pill)
-        pill_layout.setContentsMargins(10, 4, 6, 4)  # Left, Top, Right, Bottom padding
-        pill_layout.setSpacing(6)
+        pill_layout.setContentsMargins(12, 6, 8, 6)  # Increased padding for better text visibility
+        pill_layout.setSpacing(8)  # Increased spacing between text and remove button
 
-        # Height constraints to fit in 40px table row
-        pill.setMaximumHeight(30)  # Prevent pills from getting too tall
+        # Height constraints to fit in 40px table row with improved visibility
+        pill.setMaximumHeight(32)  # Increased height for better text readability
+        pill.setMinimumHeight(28)  # Ensure consistent minimum height
         pill.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
 
         # Rule text
@@ -859,12 +861,13 @@ class HidingRulesPillWidget(QWidget):
             }
             QLabel#ruleLabel {
                 color: white;
-                font-size: 12px;
+                font-size: 13px;
                 font-weight: 500;
                 background: transparent;
                 border: none;
-                padding: 0px;
-                line-height: 1.2;
+                padding: 2px 4px;
+                line-height: 1.3;
+                min-height: 16px;
             }
             QPushButton#ruleRemoveButton {
                 background: rgba(0, 0, 0, 0.15);

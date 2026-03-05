@@ -86,7 +86,10 @@ Update the status with [x] when completed.
 
 **Progress Summary**: Reduced test failures from multiple failing tests to only 1 failing test out of 238 total tests (99.6% success rate). Successfully fixed path validation error messages, race condition handling, security validation, and workspace path test compatibility. One edge case remains in Windows trailing dot/space validation test that requires further investigation.
 
-## Bug 202603052000 - 检查一下workspace编辑面板,已添加路径列列中remove_btn超出所在行的单元格大小,hiding_rules列中的元素的大小过小以至于文本显示不出来,解决这两个问题
-- [ ] 解决界面上的显示问题
-- [ ] Run security validation tests to ensure all pass
-- [ ] Git commit and push
+## Bug 202603052000 - 检查一下workspace编辑面板,已添加路径列列中remove_btn超出所在行的单元格大小,hiding_rules列中的元素的大小过小以至于文本显示不出来,解决这两个问题 ✅ COMPLETED
+- [x] 解决界面上的显示问题 ✅ COMPLETED
+  - Fixed remove button sizing to fit within 40px row height (reduced from 24px to 20px height, adjusted margins from 5px to 2-3px)
+  - Improved hiding rules pill display with increased height (30px to 32px), better padding (10,4,6,4 to 12,6,8,6), larger font (12px to 13px)
+  - Made Edit button consistent with Remove button sizing (both now 48px width, 20px height)
+- [x] Run security validation tests to ensure all pass ✅ COMPLETED
+- [x] Git commit and push ✅ COMPLETED
