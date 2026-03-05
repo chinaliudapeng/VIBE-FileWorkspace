@@ -34,3 +34,11 @@ Update the status with `[x]` when completed.
 - [x] 在Workspace编辑面板中,内容的行中HidingRules列下的Edit按钮与调整后的Remove按钮大小一样. ✅ COMPLETED
 - [x] 自动测试. ✅ COMPLETED
 - [x] Git Commit And Push. ✅ COMPLETED
+
+## Future update 0006 - CLI Command Enhancements for AI Agent Usage (MEDIUM PRIORITY) ✅ COMPLETED
+- [x] Add `remove-tag` CLI command to remove tags from files (current CLI only supports adding tags) ✅ COMPLETED
+- [x] Add `list-tags` CLI command to list all unique tags across all workspaces ✅ COMPLETED
+- [x] Add `list-workspaces` CLI command to list all available workspaces ✅ COMPLETED
+- [x] Add comprehensive tests for all new CLI commands (7 new tests added) ✅ COMPLETED
+- [x] Update CLI help documentation and version (automatic via Click) ✅ COMPLETED
+- [x] Git Commit And Push ✅ COMPLETED

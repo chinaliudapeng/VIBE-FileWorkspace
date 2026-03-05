@@ -189,6 +189,88 @@ def add_tag(path: str, tag: str):
 
 
 @cli.command()
+@click.option('--path', '-p', required=True, help='Absolute path to the file')
+@click.option('--tag', '-t', required=True, help='Tag name to remove')
+def remove_tag(path: str, tag: str):
+    """
+    Remove a tag from a specific file.
+
+    Removes the tag association if it exists.
+    """
+    try:
+        # Find the file by absolute path
+        file_entry = FileEntry.get_by_absolute_path(path)
+
+        if not file_entry:
+            handle_error(f"File not found: {path}")
+
+        # Remove the tag
+        success = Tag.remove_tag_from_file(file_entry.id, tag)
+
+        if not success:
+            handle_error(f"Tag '{tag}' not found on file: {path}")
+
+        output_json({
+            "file": {
+                "id": file_entry.id,
+                "absolute_path": file_entry.absolute_path,
+                "relative_path": file_entry.relative_path
+            },
+            "tag": tag,
+            "message": f"Successfully removed tag '{tag}' from file"
+        })
+
+    except Exception as e:
+        handle_error(f"Failed to remove tag: {str(e)}")
+
+
+@cli.command()
+def list_tags():
+    """
+    List all unique tags across all workspaces.
+
+    Outputs JSON containing all tag names currently in use.
+    """
+    try:
+        tags = Tag.get_all_unique_tags()
+
+        output_json({
+            "tags": tags,
+            "total_tags": len(tags)
+        })
+
+    except Exception as e:
+        handle_error(f"Failed to list tags: {str(e)}")
+
+
+@cli.command()
+def list_workspaces():
+    """
+    List all available workspaces.
+
+    Outputs JSON containing workspace information.
+    """
+    try:
+        workspaces = Workspace.list_all()
+
+        workspace_data = []
+        for ws in workspaces:
+            workspace_data.append({
+                "id": ws.id,
+                "name": ws.name,
+                "created_at": ws.created_at
+            })
+
+        output_json({
+            "workspaces": workspace_data,
+            "total_workspaces": len(workspace_data)
+        })
+
+    except Exception as e:
+        handle_error(f"Failed to list workspaces: {str(e)}")
+
+
+@cli.command()
 @click.option('--keyword', '-k', help='Search by keyword in file path')
 @click.option('--tags', '-t', help='Search by tags (comma-separated)')
 @click.option('--workspace', '-w', help='Limit search to specific workspace')

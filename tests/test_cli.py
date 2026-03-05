@@ -227,6 +227,160 @@ class TestCLI(unittest.TestCase):
         self.assertIn('error', output_data)
         self.assertIn("Must provide either --keyword or --tags", output_data['error'])
 
+    def test_remove_tag_success(self):
+        """Test removing a tag from a file."""
+        # Add a tag first
+        test_file_path = str(self.test_file1.resolve())
+        file_entry = FileEntry.get_by_absolute_path(test_file_path)
+        Tag.add_tag_to_file(file_entry.id, 'python')
+
+        # Remove the tag
+        result = self.runner.invoke(cli, ['remove-tag', '--path', test_file_path, '--tag', 'python'])
+
+        self.assertEqual(result.exit_code, 0)
+
+        # Parse the JSON output
+        output_data = json.loads(result.output)
+
+        self.assertTrue(output_data['success'])
+        self.assertIn('data', output_data)
+        self.assertIn('tag', output_data['data'])
+        self.assertEqual(output_data['data']['tag'], 'python')
+        self.assertIn("Successfully removed tag 'python'", output_data['data']['message'])
+
+        # Verify tag was actually removed
+        remaining_tags = Tag.get_tags_for_file(file_entry.id)
+        tag_names = [tag.tag_name for tag in remaining_tags]
+        self.assertNotIn('python', tag_names)
+
+    def test_remove_tag_file_not_found(self):
+        """Test removing a tag from a non-existent file."""
+        result = self.runner.invoke(cli, ['remove-tag', '--path', '/nonexistent/path.txt', '--tag', 'test'])
+
+        self.assertEqual(result.exit_code, 1)
+
+        # Parse the JSON output
+        output_data = json.loads(result.output)
+
+        self.assertFalse(output_data['success'])
+        self.assertIn('error', output_data)
+        self.assertIn("File not found", output_data['error'])
+
+    def test_remove_tag_not_found(self):
+        """Test removing a non-existent tag from a file."""
+        test_file_path = str(self.test_file1.resolve())
+
+        result = self.runner.invoke(cli, ['remove-tag', '--path', test_file_path, '--tag', 'nonexistent'])
+
+        self.assertEqual(result.exit_code, 1)
+
+        # Parse the JSON output
+        output_data = json.loads(result.output)
+
+        self.assertFalse(output_data['success'])
+        self.assertIn('error', output_data)
+        self.assertIn("Tag 'nonexistent' not found on file", output_data['error'])
+
+    def test_list_tags_empty(self):
+        """Test listing tags when no tags exist."""
+        result = self.runner.invoke(cli, ['list-tags'])
+
+        self.assertEqual(result.exit_code, 0)
+
+        # Parse the JSON output
+        output_data = json.loads(result.output)
+
+        self.assertTrue(output_data['success'])
+        self.assertIn('data', output_data)
+        self.assertIn('tags', output_data['data'])
+        self.assertIn('total_tags', output_data['data'])
+        self.assertEqual(output_data['data']['tags'], [])
+        self.assertEqual(output_data['data']['total_tags'], 0)
+
+    def test_list_tags_with_data(self):
+        """Test listing tags when tags exist."""
+        # Add some tags
+        test_file_path = str(self.test_file1.resolve())
+        file_entry = FileEntry.get_by_absolute_path(test_file_path)
+        Tag.add_tag_to_file(file_entry.id, 'python')
+        Tag.add_tag_to_file(file_entry.id, 'test')
+
+        # Add another tag to another file
+        test_file_path2 = str(self.test_file2.resolve())
+        file_entry2 = FileEntry.get_by_absolute_path(test_file_path2)
+        Tag.add_tag_to_file(file_entry2.id, 'documentation')
+
+        result = self.runner.invoke(cli, ['list-tags'])
+
+        self.assertEqual(result.exit_code, 0)
+
+        # Parse the JSON output
+        output_data = json.loads(result.output)
+
+        self.assertTrue(output_data['success'])
+        self.assertIn('data', output_data)
+        self.assertIn('tags', output_data['data'])
+        self.assertIn('total_tags', output_data['data'])
+
+        # Should have 3 unique tags
+        self.assertEqual(output_data['data']['total_tags'], 3)
+        self.assertIn('python', output_data['data']['tags'])
+        self.assertIn('test', output_data['data']['tags'])
+        self.assertIn('documentation', output_data['data']['tags'])
+
+    def test_list_workspaces_empty(self):
+        """Test listing workspaces when none exist (after cleanup)."""
+        # Clean up the workspace created in setUp
+        from core.db import get_connection
+        conn = get_connection()
+        try:
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM tags")
+            cursor.execute("DELETE FROM file_entry")
+            cursor.execute("DELETE FROM workspace_path")
+            cursor.execute("DELETE FROM workspace")
+            conn.commit()
+        finally:
+            conn.close()
+
+        result = self.runner.invoke(cli, ['list-workspaces'])
+
+        self.assertEqual(result.exit_code, 0)
+
+        # Parse the JSON output
+        output_data = json.loads(result.output)
+
+        self.assertTrue(output_data['success'])
+        self.assertIn('data', output_data)
+        self.assertIn('workspaces', output_data['data'])
+        self.assertIn('total_workspaces', output_data['data'])
+        self.assertEqual(output_data['data']['workspaces'], [])
+        self.assertEqual(output_data['data']['total_workspaces'], 0)
+
+    def test_list_workspaces_with_data(self):
+        """Test listing workspaces when they exist."""
+        result = self.runner.invoke(cli, ['list-workspaces'])
+
+        self.assertEqual(result.exit_code, 0)
+
+        # Parse the JSON output
+        output_data = json.loads(result.output)
+
+        self.assertTrue(output_data['success'])
+        self.assertIn('data', output_data)
+        self.assertIn('workspaces', output_data['data'])
+        self.assertIn('total_workspaces', output_data['data'])
+
+        # Should have at least the workspace created in setUp
+        self.assertGreaterEqual(output_data['data']['total_workspaces'], 1)
+
+        # Check that workspace data contains expected fields
+        if output_data['data']['total_workspaces'] > 0:
+            workspace = output_data['data']['workspaces'][0]
+            self.assertIn('id', workspace)
+            self.assertIn('name', workspace)
+            self.assertIn('created_at', workspace)
+
 
 if __name__ == '__main__':
     unittest.main()
