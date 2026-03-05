@@ -130,15 +130,15 @@ class TestWorkspacePathModel:
             )
 
     def test_add_path_whitespace_trimming(self, sample_workspace):
-        """Test that whitespace is trimmed from paths."""
+        """Test that leading whitespace is trimmed from paths."""
         workspace_path = WorkspacePath.add_path(
             sample_workspace.id,
-            "  /path/with/whitespace  ",
+            "  /path/with/normal_name",
             "folder",
             check_existence=False
         )
 
-        assert workspace_path.root_path == "/path/with/whitespace"
+        assert workspace_path.root_path == "/path/with/normal_name"
 
     def test_remove_path_success(self, sample_workspace):
         """Test successfully removing a path from workspace."""

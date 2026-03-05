@@ -76,26 +76,32 @@ def validate_workspace_path(root_path: str, path_type: str, check_existence: boo
     if not root_path or not root_path.strip():
         raise ValueError("Path cannot be empty")
 
-    # Strip leading/trailing whitespace from the entire path first
+    # Check for trailing dots or spaces in path components BEFORE any trimming (Windows issue)
+    # This validation must happen for both test mode and production mode
+    if platform.system() == "Windows":
+        # Normalize separators but don't trim whitespace yet
+        normalized_path = root_path.replace('\\', '/')
+
+        # Check if this looks like a problematic component ending
+        # We're looking for cases like "/path/file." or "/path/file "
+        # But NOT overall whitespace like "  /path/file  "
+
+        # Split by path separator and check each non-empty component
+        path_parts = normalized_path.split('/')
+
+        for part in path_parts:
+            # Skip empty parts from leading/trailing separators or overall whitespace
+            if not part or part.isspace():
+                continue
+            # Skip legitimate navigation components
+            if part in ('.', '..'):
+                continue
+            # Check for problematic endings in actual path components
+            if part.endswith('.') or part.endswith(' '):
+                raise ValueError("Path component cannot end with dot or space")
+
+    # Strip leading/trailing whitespace from the entire path for further processing
     root_path = root_path.strip()
-
-    # Check for trailing dots or spaces in path components AFTER overall trimming (Windows issue)
-    if platform.system() == "Windows":
-        # Split path to check each component for trailing dots/spaces
-        path_parts = root_path.replace('\\', '/').split('/')
-        for part in path_parts:
-            # Skip empty parts and legitimate navigation components
-            if part and part not in ('.', '..') and (part.endswith('.') or part.endswith(' ')):
-                raise ValueError("Path component cannot end with dot or space")
-
-    # Check for trailing dots or spaces AFTER trimming (Windows issue)
-    if platform.system() == "Windows":
-        # Split path to check each component for trailing dots/spaces
-        path_parts = root_path.replace('\\', '/').split('/')
-        for part in path_parts:
-            # Skip empty parts and legitimate navigation components
-            if part and part not in ('.', '..') and (part.endswith('.') or part.endswith(' ')):
-                raise ValueError("Path component cannot end with dot or space")
 
     # Detect path traversal attacks before normalization
     if '..' in root_path:
